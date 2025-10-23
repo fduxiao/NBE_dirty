@@ -1,0 +1,6 @@
+name = "NBE"
+version = "0.1.0"
+defaultTargets = ["NBE"]
+
+[[lean_lib]]
+name = "NBE"
