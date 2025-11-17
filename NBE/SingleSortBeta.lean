@@ -1392,7 +1392,13 @@ inductive Tm.step2: Tm -> Tm -> Prop where
   | abs {t1 t2: Tm}: Tm.step2 t1 t2 -> Tm.step2 t1.abs t2.abs
   | app {t1 t2 s1 s2: Tm}: Tm.step2 t1 t2 -> Tm.step2 s1 s2 -> Tm.step2 (.app t1 s1) (.app t2 s2)
   -- refl
-  | refl {t: Tm}: Tm.step2 t t
+  | var {x: Nat}: Tm.step2 (.var x) (.var x)
+
+
+theorem Tm.step2.refl {t: Tm}:
+  t.step2 t
+:= by
+  induction t <;> grind [step2]
 
 
 theorem Tm.step2.app1 {t1 t2 s: Tm}:
@@ -1438,7 +1444,7 @@ theorem Tm.step2.mstep {t1 t2: Tm}:
 := by
   intro S
   induction S with
-  | refl =>
+  | var =>
     apply RTCl.refl
   | appAbs S1 S2 IH1 IH2 =>
     apply RTCl.trans
@@ -1486,9 +1492,6 @@ theorem Tm.step2_eval {t: Tm}:
       apply step2.appAbs
       . generalize E: t1.eval.abs = t1' at IH1
         cases IH1 with
-        | refl =>
-          simp_all
-          apply step2.refl
         | abs =>
           cases E
           assumption
@@ -1508,7 +1511,7 @@ theorem Tm.step2.ssubst {t1 t2: Tm} {s: Subst}:
 := by
   intro S
   induction S generalizing s with
-  | refl =>
+  | var =>
     apply step2.refl
   | abs S IH =>
     simp [Tm.ssubst]
@@ -1590,7 +1593,7 @@ theorem Tm.step2.subst {t1 t2 s1 s2: Tm} {i}:
 := by
   intro S1 S2
   induction S1 generalizing i s1 s2 with
-  | refl =>
+  | var =>
     apply step2.subst2
     exact S2
   | abs S IH =>
@@ -1644,7 +1647,7 @@ theorem Tm.step2.switch {t1 t2: Tm}:
 := by
   intro S
   induction S with
-  | refl =>
+  | var =>
     apply Tm.step2_eval
   | abs S IH =>
     simp [eval]
@@ -1674,25 +1677,8 @@ theorem Tm.step2.switch {t1 t2: Tm}:
       simp [eval] at *
       generalize E: t1.eval.abs = t1' at IH1
       cases S1 with
-      | refl =>
-        cases IH1 with
-        | refl =>
-          simp_all
-          apply step2.appAbs
-          . apply step2.refl
-          . exact IH2
-        | abs IH1 =>
-          simp_all
-          apply step2.appAbs
-          . apply IH1
-          . apply IH2
       | abs S1 =>
         cases IH1 with
-        | refl =>
-          simp_all
-          apply step2.appAbs
-          . apply step2.refl
-          . exact IH2
         | abs IH1 =>
           simp_all
           apply step2.appAbs
