@@ -293,3 +293,269 @@ theorem Relation.ChRo_to_semi_confl {X: Type} (R: Relation X)
       apply ECl.inclusion H12
     . apply RTCl.sub_ecl
       exact H13
+
+
+inductive Relation.union {X: Type} (R1 R2: Relation X): Relation X where
+  | left {x y}: R1 x y -> union R1 R2 x y
+  | right {x y}: R2 x y -> union R1 R2 x y
+
+
+theorem RTCl.left {X: Type} {R1 R2: Relation X} {x y}:
+  RTCl R1 x y -> RTCl (R1.union R2) x y
+:= by
+  intro H
+  induction H with
+  | refl =>
+    rfl
+  | step Hxy Hyz IH =>
+    rename_i x y z
+    apply RTCl.step
+    . apply Relation.union.left
+      exact Hxy
+    . exact IH
+
+
+theorem RTCl.right {X: Type} {R1 R2: Relation X} {x y}:
+  RTCl R2 x y -> RTCl (R1.union R2) x y
+:= by
+  intro H
+  induction H with
+  | refl =>
+    rfl
+  | step Hxy Hyz IH =>
+    rename_i x y z
+    apply RTCl.step
+    . apply Relation.union.right
+      exact Hxy
+    . exact IH
+
+
+theorem RTCl.union_rtcl {X: Type} {R1 R2: Relation X}:
+  RTCl ((RTCl R1).union (RTCl R2)) = RTCl (R1.union R2)
+:= by
+  funext x z
+  apply propext
+  apply Iff.intro
+  . intro H
+    induction H with
+    | refl =>
+      rfl
+    | step Hxy Hyz IH =>
+      rename_i x y z
+      cases Hxy with
+      | left Hxy =>
+        apply RTCl.trans
+        . apply Hxy.left
+        . exact IH
+      | right Hxy =>
+        apply RTCl.trans
+        . apply Hxy.right
+        . exact IH
+  . intro H
+    induction H with
+    | refl =>
+      rfl
+    | step Hxy Hyz IH =>
+      rename_i x y z
+      cases Hxy with
+      | left Hxy =>
+        apply RTCl.step
+        . apply Relation.union.left
+          apply RTCl.inclusion
+          apply Hxy
+        . exact IH
+      | right Hxy =>
+        apply RTCl.step
+        . apply Relation.union.right
+          apply RTCl.inclusion
+          apply Hxy
+        . exact IH
+
+
+class Commutative {X: Type} (R1 R2: Relation X) where
+  /--
+  ```
+  x →₁ y1         x →₁ y1
+  ↓₂         =>   ↓₂   ↓₂
+  y2              y2 →₁ z
+  ```
+  -/
+  comm {x y1 y2: X}: R1 x y1 -> R2 x y2 -> exists z, R2 y1 z ∧ R1 y2 z
+
+
+/--
+```
+x →₁ y1         x →₁ y1
+↡₂         =>   ↡₂   ↡₂
+y2              y2 →₁ z
+```
+-/
+theorem RTCl.semi_comm {X: Type} {R1 R2: Relation X} [inst: Commutative R1 R2]:
+  forall {x y1 y2}, R1 x y1 -> RTCl R2 x y2 -> exists z, RTCl R2 y1 z ∧ R1 y2 z
+:= by
+  intro x y1 y2 Hxy1 Hxy2
+  induction Hxy2 generalizing y1 with
+  | refl =>
+    /-
+    x →₁ y1
+    ↡₂
+    x
+    -/
+    exists y1
+  | step Hxt Hty2 IH =>
+    /-
+    x →₁ y1
+    ↓₂   ↓₂
+    t →₁ w
+    ↡₂
+    y2
+    -/
+    obtain ⟨w, Hy1w, Htw⟩ := inst.comm Hxy1 Hxt
+    /-
+    x  →₁ y1
+    ↓₂    ↓₂
+    t  →₁ w
+    ↡₂    ↡₂
+    y2 →₁ z
+    -/
+    obtain ⟨z, Hwz, Hy2z⟩ := IH Htw
+    exists z
+    and_intros
+    . apply RTCl.step Hy1w Hwz
+    . apply Hy2z
+
+
+/--
+```
+x ↠₁ y1         x ↠₁ y1
+↡₂         =>   ↡₂   ↡₂
+y2              y2 ↠₁ z
+```
+-/
+instance Commutative.rtcl {X: Type} {R1 R2: Relation X} [inst: Commutative R1 R2]:
+  Commutative (RTCl R1) (RTCl R2)
+where
+  comm {x y1 y2} := by
+    intro Hxy1 Hxy2
+    induction Hxy1 generalizing y2 with
+    | refl =>
+      /-
+      x ↠₁ x
+      ↡₂
+      y2
+      -/
+      exists y2
+    | step Hxt Hty1 IH =>
+      /-
+      x  →₁ t ↠₁ y1
+      ↡₂    ↡₂
+      y2 →₁ d
+      -/
+      obtain ⟨d, Htd, Hy2d⟩ := RTCl.semi_comm Hxt Hxy2
+      /-
+      x  →₁ t ↠₁ y1
+      ↡₂    ↡₂   ↡₂
+      y2 →₁ d ↠₁ z
+      -/
+      obtain ⟨z, Hy1z, Hdz⟩ := IH Htd
+      exists z
+      and_intros
+      . apply Hy1z
+      . apply RTCl.step Hy2d Hdz
+
+
+class Diamond {X: Type} (R: Relation X) where
+  diamond {m1 m2 m3: X}: R m1 m2 -> R m1 m3 -> exists m4, R m2 m4 ∧ R m3 m4
+
+
+instance Diamond.semi_confl {X} {R: Relation X} [inst: Diamond R]: SemiConfluent R where
+  semi_confl := by
+    intro m1 m2 m3 H12 H13
+    induction H13 generalizing m2 with
+    | refl =>
+      /-
+      m1 → m2
+      ↓
+      m1
+      -/
+      rename_i m1
+      exists m2
+      and_intros
+      . rfl
+      . apply RTCl.inclusion
+        exact H12
+    | step H1y Hy3 IH =>
+      rename_i m1 y m3
+      /-
+      m1 → m2
+      ↓    ↓
+      y →  d
+      ↡
+      m3
+      -/
+      obtain ⟨d, H2d, Hyd⟩ := inst.diamond H12 H1y
+      obtain ⟨m4, Hd4, H34⟩ := IH Hyd
+      exists m4
+      and_intros
+      . apply RTCl.step H2d Hd4
+      . exact H34
+
+
+instance Diamond.confluence {X} {R: Relation X} [inst: Diamond R]: Confluent R where
+  confl := Confluent.confl
+
+
+instance Commutative.union_diamond {X} {R1 R2: Relation X}
+  [comm: Commutative R1 R2] [dia1: Diamond R1] [dia2: Diamond R2]
+:
+  Diamond (R1.union R2)
+where
+  diamond {m1 m2 m3} := by
+    intro H12 H13
+    match H12, H13 with
+    | .left H12, .left H13 =>
+      obtain ⟨m4, H24, H34⟩ := dia1.diamond H12 H13
+      exists m4
+      and_intros
+      . apply Relation.union.left H24
+      . apply Relation.union.left H34
+    | .left H12, .right H13 =>
+      obtain ⟨m4, H24, H34⟩ := comm.comm H12 H13
+      exists m4
+      and_intros
+      . apply Relation.union.right H24
+      . apply Relation.union.left H34
+    | .right H12, .left H13 =>
+      obtain ⟨m4, H34, H24⟩ := comm.comm H13 H12
+      exists m4
+      and_intros
+      . apply Relation.union.left H24
+      . apply Relation.union.right H34
+    | .right H12, .right H13 =>
+      obtain ⟨m4, H24, H34⟩ := dia2.diamond H12 H13
+      exists m4
+      and_intros
+      . apply Relation.union.right H24
+      . apply Relation.union.right H34
+
+
+instance Confluent.rtcl_diamond {X} {R: Relation X} [inst: Confluent R]: Diamond (RTCl R) where
+  diamond := inst.confl
+
+
+instance Relation.union_comm_confl {X} {R1 R2: Relation X}
+  [comm: Commutative R1 R2] [confl1: Confluent R1] [confl2: Confluent R2]
+:
+  Confluent (R1.union R2)
+where
+  confl := by
+    intro m1 m2 m3 H12 H13
+    have dia1 := confl1.rtcl_diamond
+    have dia2 := confl2.rtcl_diamond
+    replace comm := comm.rtcl
+    have dia := comm.union_diamond
+    have confluence := dia.confluence
+    rewrite [<-RTCl.union_rtcl] at *
+    apply confluence.confl
+    . assumption
+    . assumption
