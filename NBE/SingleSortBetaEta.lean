@@ -180,48 +180,6 @@ def Tm.subst (t: Tm) (x: Nat) (s: Tm): Tm :=
   | .app M N => .app (M.subst x s) (N.subst x s)
 
 
-theorem Tm.subst_up {t s: Tm} {c i n: Nat}:
-  (t.up (c + i + 1) n).subst i (s.up (c + i + 1) n) = (t.subst i s).up (c + i + 1) n
-:= by
-  induction t generalizing c i n s with
-  | var x =>
-    simp [up, subst]
-    grind [up]
-  | app t1 t2 IH1 IH2 =>
-    simp [up, subst]
-    grind
-  | abs t IH =>
-    simp [up, subst] at *
-    rewrite [Tm.up0_switch]
-    have E: c + i + 1 + 1 = c + (i + 1) + 1 := by ac_nf
-    rewrite [E]
-    apply IH
-
-
-theorem Tm.subst_up_var0 {t s: Tm} {c n: Nat}:
-  (t.up (c + 1) n).subst 0 (s.up (c + 1) n) = (t.subst 0 s).up (c + 1) n
-:= by
-  apply subst_up (i := 0)
-
-
-theorem Tm.subst_down {t s: Tm} {c i n: Nat}:
-  (t.up (c + i + 1) n).subst i (s.up (c + i + 1) n) = (t.subst i s).up (c + i + 1) n
-:= by
-  induction t generalizing c i n s with
-  | var x =>
-    simp [up, subst]
-    grind [up]
-  | app t1 t2 IH1 IH2 =>
-    simp [up, subst]
-    grind
-  | abs t IH =>
-    simp [up, subst] at *
-    rewrite [Tm.up0_switch]
-    have E: c + i + 1 + 1 = c + (i + 1) + 1 := by ac_nf
-    rewrite [E]
-    apply IH
-
-
 @[simp]
 theorem Tm.subst_up_down_var {t: Tm} {i: Nat}:
   (t.subst i (var $ i + 1)).down i = t.down i
@@ -2414,10 +2372,661 @@ theorem Tm.normalizing {Γ} {t: Tm} {T}:
   apply N.BNF
 
 
+
+/--
+The parallel reduction relation.
+-/
+inductive Tm.step2: Tm -> Tm -> Prop where
+  -- beta reduction
+  | appAbs {t1 t2 s1 s2: Tm}: t1.step2 t2 -> s1.step2 s2 -> Tm.step2 (.app t1.abs s1) (t2.subst 0 s2.up0).down0
+  -- eta
+  | eta {t1 t2: Tm}: t1.step2 t2 -> (t1.up0.app (.var 0)).abs.step2 t2
+  -- congrunence relation
+  | abs {t1 t2: Tm}: Tm.step2 t1 t2 -> Tm.step2 t1.abs t2.abs
+  | app {t1 t2 s1 s2: Tm}: Tm.step2 t1 t2 -> Tm.step2 s1 s2 -> Tm.step2 (.app t1 s1) (.app t2 s2)
+  -- refl
+  | var {x: Nat}: Tm.step2 (.var x) (.var x)
+
+
+theorem Tm.step2.refl {t: Tm}:
+  t.step2 t
+:= by
+  induction t <;> grind [Tm.step2]
+
+
+theorem Tm.step2.app1 {t1 t2 s: Tm}:
+  t1.step2 t2 ->
+  (t1.app s).step2 (t2.app s)
+:= by
+  intro S
+  apply app
+  . exact S
+  . apply refl
+
+
+theorem Tm.step2.app2 {t s1 s2: Tm}:
+  s1.step2 s2 ->
+  (t.app s1).step2 (t.app s2)
+:= by
+  intro S
+  apply app
+  . apply refl
+  . exact S
+
+
+theorem Tm.step.step2 {t1 t2: Tm}:
+  t1.step t2 -> t1.step2 t2
+:= by
+  intro S
+  induction S with
+  | appAbs =>
+    apply step2.appAbs .refl .refl
+  | abs S IH =>
+    apply step2.abs
+    apply IH
+  | app1 S IH =>
+    apply step2.app1
+    exact IH
+  | app2 S IH =>
+    apply step2.app2
+    exact IH
+  | eta =>
+    apply step2.eta
+    apply step2.refl
+
+
+theorem Tm.step2.mstep {t1 t2: Tm}:
+  t1.step2 t2 -> t1.mstep t2
+:= by
+  intro S
+  induction S with
+  | var =>
+    apply RTCl.refl
+  | appAbs S1 S2 IH1 IH2 =>
+    apply RTCl.trans
+    . apply Tm.mstep.app1
+      apply Tm.mstep.abs
+      apply IH1
+    apply RTCl.trans
+    . apply Tm.mstep.app2
+      apply IH2
+    apply RTCl.inclusion
+    apply step.appAbs
+  | eta S IH =>
+    apply RTCl.step
+    . apply step.eta
+    . exact IH
+  | abs S IH =>
+    apply mstep.abs
+    exact IH
+  | app S1 S2 IH1 IH2 =>
+    apply mstep.app
+    . apply IH1
+    . apply IH2
+
+
+theorem Tm.step2.compute {t t' t'': Tm}:
+  t.step2 t' -> t' = t'' -> t.step2 t''
+:= by
+  intro H E
+  simp_all
+
+
+theorem Tm.step2.ssubst {t1 t2: Tm} {s: Subst}:
+  t1.step2 t2 ->
+  (t1.ssubst s).step2 (t2.ssubst s)
+:= by
+  intro S
+  induction S generalizing s with
+  | var =>
+    apply step2.refl
+  | abs S IH =>
+    simp [Tm.ssubst]
+    apply step2.abs
+    apply IH
+  | app S1 S2 IH1 IH2 =>
+    simp [Tm.ssubst]
+    apply step2.app
+    . apply IH1
+    . apply IH2
+  | appAbs S1 S2 IH1 IH2 =>
+    simp [Tm.ssubst]
+    apply Tm.step2.compute
+    . apply appAbs
+      . apply IH1
+      . apply IH2
+    simp [Tm.step_ssubst]
+    apply Tm.ssubst_congr
+    intro n
+    simp [Subst.comp]
+    cases n with
+    | zero =>
+      simp [Subst.abs, Tm.ssubst, Subst.step]
+    | succ =>
+      simp [Subst.abs, Tm.ssubst, Subst.step]
+  | eta S IH =>
+    simp [Tm.ssubst]
+    apply Tm.step2.compute
+    . apply eta
+      apply IH
+    eq_refl
+
+
+theorem Tm.step2.subst1 {t1 t2 s: Tm} {i}:
+  t1.step2 t2 ->
+  (t1.subst i s).step2 (t2.subst i s)
+:= by
+  simp [Tm.subst_ssubst]
+  apply Tm.step2.ssubst
+
+
+theorem Tm.step2.up {t1 t2: Tm} {c n}:
+  t1.step2 t2 -> (t1.up c n).step2 (t2.up c n)
+:= by
+  simp [Tm.up_ssubst]
+  apply Tm.step2.ssubst
+
+
+theorem Tm.step2.down {t1 t2: Tm} {c}:
+  t1.step2 t2 -> (t1.down c).step2 (t2.down c )
+:= by
+  simp [Tm.down_ssubst]
+  apply Tm.step2.ssubst
+
+
+theorem Tm.step2.subst2 {t s1 s2: Tm} {i}:
+  s1.step2 s2 ->
+  (t.subst i s1).step2 (t.subst i s2)
+:= by
+  intro S
+  induction t generalizing i s1 s2 with
+  | var x =>
+    simp [Tm.subst]
+    split
+    . exact S
+    . apply step2.refl
+  | abs t IH =>
+    simp [Tm.subst]
+    apply step2.abs
+    apply IH
+    apply S.up
+  | app t1 t2 IH1 IH2 =>
+    simp [Tm.subst]
+    apply Tm.step2.app
+    . apply IH1
+      exact S
+    . apply IH2
+      exact S
+
+
+theorem Tm.not_free_subst_eq {t s: Tm} {i: Nat}:
+  t.freeVar i = false ->
+  t.subst i s = t
+:= by
+  induction t generalizing i s with
+  | var x =>
+    simp [freeVar, subst]
+    grind
+  | app t1 t2 IH1 IH2 =>
+    simp [freeVar, subst]
+    grind
+  | abs t IH =>
+    simp [freeVar, subst]
+    grind
+
+
+@[simp]
+theorem Tm.up0_subst_eq {t s: Tm}:
+  t.up0.subst 0 s = t.up0
+:= by
+  apply Tm.not_free_subst_eq
+  simp
+
+
+theorem Tm.subst_up0 {t s: Tm} {i}:
+  (t.up0.subst (i + 1) s.up0) = (t.subst i s).up0
+:= by
+  unfold up0
+  simp [Tm.up_ssubst, Tm.subst_ssubst]
+  apply Tm.ssubst_congr
+  intro n
+  simp [Subst.comp, Subst.term, Subst.up, ssubst]
+  split
+  . eq_refl
+  . simp [Subst.up, ssubst]
+
+
+theorem Tm.step2.subst {t1 t2 s1 s2: Tm} {i}:
+  t1.step2 t2 ->
+  s1.step2 s2 ->
+  (t1.subst i s1).step2 (t2.subst i s2)
+:= by
+  intro S1 S2
+  induction S1 generalizing i s1 s2 with
+  | var =>
+    apply step2.subst2
+    exact S2
+  | abs S IH =>
+    simp [Tm.subst]
+    apply step2.abs
+    apply IH
+    apply S2.up
+  | app _ _ IH1 IH2 =>
+    simp [Tm.subst]
+    apply step2.app
+    . apply IH1
+      exact S2
+    . apply IH2
+      exact S2
+  | appAbs _ _ IH1 IH2 =>
+    simp [Tm.subst]
+    apply step2.compute
+    . apply step2.appAbs
+      . apply IH1
+        exact S2.up
+      . apply IH2
+        exact S2
+    simp [Tm.step_ssubst]
+    simp [Tm.subst_ssubst, Tm.up_ssubst]
+    apply Tm.ssubst_congr
+    intro n
+    simp [Subst.comp]
+    induction n with
+    | zero =>
+      simp [Tm.ssubst, Subst.term, Subst.step]
+    | succ n =>
+      simp [Tm.ssubst, Subst.term, Subst.step]
+      split
+      . simp
+        rewrite [Tm.ssubst_id s2]
+        simp
+        apply Tm.ssubst_congr
+        intro n
+        simp [Subst.comp]
+        simp [Subst.id, Tm.ssubst, Subst.step, Subst.comp, Subst.up]
+      . simp [Tm.ssubst, Subst.step]
+  | eta S IH =>
+    rename_i t1 t2
+    simp [Tm.subst]
+    simp [Tm.subst_up0]
+    apply step2.eta
+    apply IH
+    exact S2
+
+
+def Tm.size: Tm -> Nat
+  | .var _ => 0
+  | .app t1 t2 => t1.size + t2.size + 1
+  | .abs t => t.size + 1
+
+
+@[simp]
+theorem Tm.up_size {t: Tm} {c n: Nat}:
+  (t.up c n).size = t.size
+:= by
+  induction t generalizing c <;> grind [up, size]
+
+
+@[simp]
+theorem Tm.up0_size {t: Tm}:
+  t.up0.size = t.size
+:= by
+  simp [up0]
+
+
+@[simp]
+theorem Tm.down_size {t: Tm} {c: Nat}:
+  (t.down c).size = t.size
+:= by
+  induction t generalizing c <;> grind [down, size]
+
+
+@[simp]
+theorem Tm.down0_size {t: Tm}:
+  t.down0.size = t.size
+:= by
+  simp [down0]
+
+
+def Tm.strong_ind.{u} {motive: Tm -> Sort u}
+  (var: forall x, motive (.var x))
+  (abs: forall M: Tm, (forall t: Tm, t.size < M.abs.size -> motive t) -> motive M.abs)
+  (app: forall t1 t2: Tm, (forall t: Tm, t.size < (t1.app t2).size -> motive t) -> motive (t1.app t2))
+  (t: Tm)
+:
+  motive t
+:=
+  match t with
+  | .var x => var x
+  | .abs M => abs M (fun t _ => strong_ind var abs app t)
+  | .app t1 t2 => app t1 t2 (fun t _ => strong_ind var abs app t)
+termination_by t.size
+decreasing_by
+  . trivial
+  . trivial
+
+
+def Tm.eval (t: Tm): Tm :=
+  match t with
+  | .var x => .var x
+  | .app (.abs t1) t2 => (t1.eval.subst 0 t2.eval.up0).down0
+  | .app t1 t2 => .app t1.eval t2.eval
+  | .abs (.app t1 (.var 0)) =>
+    if t1.freeVar 0 then .abs (t1.app (.var 0)).eval else t1.down0.eval
+  | .abs t => .abs t.eval
+termination_by t.size
+decreasing_by
+  all_goals (try grind [size])
+  simp [size]
+  omega
+
+
+@[simp]
+theorem Tm.eval_up_eta {t: Tm}:
+  (t.up0.app (Tm.var 0)).abs.eval = t.eval
+:= by
+  simp [eval]
+
+
+theorem Tm.step2_eval {t: Tm}:
+  t.step2 t.eval
+:= by
+  induction t using strong_ind with
+  | var x =>
+    simp [eval]
+    apply step2.refl
+  | abs t IH =>
+    unfold eval
+    split <;> try contradiction
+    next E =>  -- eta reduction
+      cases t <;> try cases E
+      rename_i t
+      split
+      . apply step2.abs
+        apply IH
+        simp [size]
+      . simp_all
+        obtain ⟨s, E⟩ := Tm.not_free_up0 (by assumption)
+        simp_all
+        apply step2.eta
+        apply IH
+        simp [size]
+        omega
+    next E => -- otherwise
+      specialize IH t (by grind [size])
+      simp_all
+      apply IH.abs
+  | app t1 t2 IH =>
+    have IH1 := IH t1 (by grind [size])
+    have IH2 := IH t2 (by grind [size])
+    cases t1 with
+    | var x =>
+      simp [eval]
+      apply step2.app2
+      exact IH2
+    | app s1 s2 =>
+      simp [eval]
+      apply step2.app
+      . apply IH1
+      . apply IH2
+    | abs t1 =>
+      simp [eval]
+      apply step2.appAbs
+      . apply IH
+        grind [size]
+      . apply IH
+        grind [size]
+
+
+
+theorem Tm.not_free_up_not_free {t: Tm} {c n: Nat} {x}:
+  t.freeVar x = false <-> (t.up c n).freeVar (Rename.up c n x) = false
+:= by
+  induction t generalizing c n x with
+  | var =>
+    grind [freeVar, Rename.up, Tm.up]
+  | app =>
+    grind [freeVar, Rename.up, Tm.up]
+  | abs t IH =>
+    simp [freeVar, Rename.up, Tm.up] at *
+    have E: (x < c) = (x + 1 < c + 1) := by grind
+    specialize IH (c := c + 1) (x := x + 1) (n := n)
+    grind
+
+
+theorem Tm.step_not_free {t s: Tm} {x c: Nat}:
+  t.freeVar (Rename.up c 1 x) = false ->
+  s.freeVar x = false ->
+  ((t.subst c (s.up c 1)).down c).freeVar x = false
+:= by
+  intro H1 H2
+  induction t generalizing c s x with
+  | var y =>
+    simp [subst, freeVar, Rename.up] at *
+    split
+    . simp
+      exact H2
+    . simp [freeVar, down]
+      grind
+  | app t1 t2 IH1 IH2 =>
+    simp [freeVar, subst, down] at *
+    grind
+  | abs t IH =>
+    simp [freeVar, subst, down] at *
+    rewrite [Tm.up0_switch]
+    apply IH
+    . simp [Rename.up] at *
+      grind
+    . replace H2 := (not_free_up_not_free (c := 0) (n := 1)).mp H2
+      simp [Rename.up] at H2
+      apply H2
+
+
+theorem Tm.step2.not_free {t s: Tm} {x: Nat}:
+  t.step2 s ->
+  t.freeVar x = false ->
+  s.freeVar x = false
+:= by
+  intro S H
+  induction S generalizing x with
+  | var =>
+    simp [freeVar] at *
+    trivial
+  | app S1 S2 IH1 IH2 =>
+    simp [freeVar] at *
+    grind
+  | abs S IH =>
+    rename_i t s
+    simp [freeVar] at *
+    apply IH
+    exact H
+  | appAbs S1 S2 IH1 IH2 =>
+    rename_i t1 s1 t2 s2
+    simp [freeVar] at H
+    obtain ⟨H1, H2⟩ := H
+    specialize IH1 H1
+    specialize IH2 H2
+    apply Tm.step_not_free
+    simp [Rename.up]
+    . exact IH1
+    . exact IH2
+  | eta S IH =>
+    rename_i t s
+    simp [freeVar] at H
+    apply IH
+    apply (Tm.not_free_up_not_free (c := 0) (n := 1)).mpr
+    simp [Rename.up]
+    apply H
+
+
+theorem Tm.step2.switch {t s: Tm}:
+  t.step2 s ->
+  s.step2 t.eval
+:= by
+  intro S
+  induction t using Tm.strong_ind generalizing s with
+  | var x =>
+    cases S
+    simp [eval]
+    apply step2.var
+  | app t1 t2 IH =>
+    cases S with
+    | app S1 S2 =>
+      rename_i s1 s2
+      have IH1 := IH t1 (by grind [size]) S1
+      have IH2 := IH t2 (by grind [size]) S2
+      unfold eval
+      split <;> try contradiction
+      next E => -- β-redex
+        simp_all; clear E
+        rename_i t1 t2
+        cases S1 with
+        | abs S1 =>
+          rename_i s1
+          replace IH1 := IH t1 (by grind [size]) S1
+          apply step2.appAbs
+          . exact IH1
+          . exact IH2
+        | eta S1 =>
+          rename_i t1
+          simp at IH1
+          have E: (s1.up0.app s2.up0) = (s1.up0.app (.var 0)).subst 0 s2.up0 := by
+            simp [Tm.subst]
+          replace E := congrArg Tm.down0 E
+          simp at E
+          rewrite [E]
+          apply step2.down
+          apply Tm.step2.subst
+          . apply IH
+            . grind [size]
+            . apply step2.app1
+              apply S1.up
+          . apply IH2.up
+      next => -- otherwise
+        simp_all
+        apply step2.app
+        . exact IH1
+        . exact IH2
+    | appAbs S1 S2 =>
+      rename_i t1 s1 s2
+      -- we need it for
+      have IH1 := IH t1 (by grind [size]) S1
+      have IH2 := IH t2 (by grind [size]) S2
+      simp [eval]
+      apply step2.down
+      apply step2.subst
+      . apply IH1
+      . apply IH2.up
+  | abs t IH =>
+    cases S with
+    | eta S =>
+      rename_i t
+      simp
+      apply IH
+      . simp [size]
+        omega
+      . exact S
+    | abs S =>
+      rename_i s
+      unfold eval
+      split <;> try contradiction
+      next E => -- app
+        simp_all; clear E
+        rename_i t
+        split
+        . -- not a η-redex
+          apply step2.abs
+          apply IH (t.app (.var 0))
+          . grind [size]
+          . exact S
+        . rename_i N
+          simp_all
+          cases S with
+          | app S1 S2 =>
+            rename_i s _
+            cases S2
+            replace N := S1.not_free N
+            obtain ⟨s, E⟩ := Tm.not_free_up0 N
+            simp_all; clear E
+            apply step2.eta
+            apply IH
+            . simp [size]
+              omega
+            . replace S1 := S1.down (c := 0)
+              simp [up0] at S1
+              exact S1
+          | appAbs S1 S2 =>
+            rename_i t s _
+            cases S2
+            apply IH _ (by simp [size])
+            simp [down0, Tm.down]
+            apply step2.abs
+            simp [freeVar] at N
+            have E: t.down 1 = t.down 0 := by
+              clear S1 IH
+              rewrite [<-Nat.add_zero 1] at *
+              generalize 0 = c at *
+              induction t generalizing c <;>
+              . grind [Tm.down, freeVar]
+            rewrite [E]
+            apply S1.down
+      next E => -- not a η-redex
+        simp_all; clear E
+        apply step2.abs
+        apply IH
+        . grind [size]
+        . exact S
+
+
+theorem Tm.step2.eval {t1 t2: Tm}:
+  t1.step2 t2 ->
+  t1.eval.step2 t2.eval
+:= by
+  intro S
+  replace S := S.switch
+  apply S.switch
+
+
+theorem Tm.mstep.eval {t1 t2: Tm}:
+  t1.mstep t2 -> t1.eval.mstep t2.eval
+:= by
+  intro S
+  induction S with
+  | refl =>
+    apply RTCl.refl
+  | step Hxy Hyz IH =>
+    replace Hxy := Hxy.step2
+    replace Hxy := Hxy.eval
+    replace Hxy := Hxy.mstep
+    apply RTCl.trans
+    . apply Hxy
+    . apply IH
+
+
+instance Tm.step.semi_confl: SemiConfluent Tm.step where
+  semi_confl := by
+    intro m1 m2 m3 S MS
+    exists m3.eval
+    and_intros
+    . replace S := S.step2
+      replace S := S.switch
+      replace S := S.mstep
+      apply RTCl.trans
+      . apply S
+      . apply mstep.eval
+        exact MS
+    . apply step2.mstep
+      apply step2_eval
+
+
 theorem Tm.Eq.normal_same {t1 t2: Tm}:
   t1.Eq t2 -> t1.normal -> t2.normal -> t1 = t2
 := by
-  admit
+  intro E N1 N2
+  obtain ⟨s, H1s, H2s⟩ := ChurchRosser.church_rosser E
+  replace N1 := N1.MNormal H1s
+  replace N2 := N2.MNormal H2s
+  simp_all
 
 
 theorem Tm.Eq.doEta {t1 t2: Tm}:
