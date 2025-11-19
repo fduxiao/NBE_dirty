@@ -91,13 +91,13 @@ def Presheaf.forces (P: Presheaf): Presheaf where
       exact F
 
 
-class NPair (PNE PNF: Presheaf) where
+class NPair (PNE: outParam Presheaf) (PNF: Presheaf) where
   atom {Γ t}: PNE Γ t .Atom -> PNF Γ t .Atom
   imp {Γ Γ' t s A B}:
     PNE.Pred Γ t (A.imp B) ->
     PNF.Pred (Γ' ++ Γ) s A ->
     PNE.Pred (Γ' ++ Γ) ((Tm.up 0 (List.length Γ') t).app s) B
-  var {A Γ}: PNE ([A] ++ Γ) (Tm.var 0) A
+  var {Γ A}: PNE ([A] ++ Γ) (Tm.var 0) A
   app_inv {Γ t A B}: PNF.Pred (A :: Γ) ((Tm.up 0 1 t).app (Tm.var 0)) B -> PNF.Pred Γ t (A.imp B)
 
 
@@ -360,10 +360,10 @@ theorem Instantiate.self {Γ} {PNE PNF} [inst: NPair PNE PNF]:
     simp [Env.vars]
     constructor
   | cons T TS IH =>
-    apply cons
+    apply Instantiate.cons
     . apply inst.completeness.right
       apply inst.var
-    . apply weaken_cons
+    . apply Instantiate.weaken_cons
       exact IH
 
 
@@ -409,11 +409,11 @@ def Presheaf.typing (P: Presheaf) [inst: P.Typing]:
 One part needed for the well-definedness of the natural transformation.
 -/
 theorem Instantiate.typing {PNE PNF: Presheaf} [inst: NPair PNE PNF] [PNF.Typing] {Δ Γ: Context} {env t T}:
-  Γ.Typing t T ->
   Instantiate PNF Δ env Γ ->
+  Γ.Typing t T ->
   Δ.Typing (t.msubst env) T
 := by
-  intro HT I
+  intro I HT
   induction HT generalizing Δ env with
   | var H =>
     rename_i Γ x T
@@ -427,8 +427,7 @@ theorem Instantiate.typing {PNE PNF: Presheaf} [inst: NPair PNE PNF] [PNF.Typing
     rewrite [FinMap.lookup_lt_some L1] at H
     simp_all
     replace F := inst.completeness.left F
-    apply PNF.typing
-    exact F
+    apply Presheaf.Typing.typing F
   | app H1 H2 IH1 IH2 =>
     simp [Tm.msubst]
     constructor
@@ -465,7 +464,7 @@ If `Γ` and `T` are interpreted as presheaves `[Γ]` and `[T]`, then the morphis
 That is, for each `Δ` in the category `Context`, you have to find a function from `[Γ](Δ)` to `[T](Δ)`.
 The former is some `Δ ⊩ env: Γ`, and the later is `Δ ⊩ t[env]: T`
 -/
-theorem soundness {PNE PNF: Presheaf} [inst: NPair PNE PNF] [PNF.MSubst] {Γ: Context} {t T}:
+theorem NPair.soundness {PNE PNF: Presheaf} [inst: NPair PNE PNF] [PNF.MSubst] {Γ: Context} {t T}:
   Γ.Typing t T ->
   forall Δ env, Instantiate PNF Δ env Γ -> PNF.forces Δ (t.msubst env) T
 := by
@@ -497,7 +496,6 @@ theorem soundness {PNE PNF: Presheaf} [inst: NPair PNE PNF] [PNF.MSubst] {Γ: Co
   | app HT1 HT2 IH1 IH2 =>
     specialize IH1 _ _ I
     specialize IH2 _ _ I
-    simp [Tm.msubst]
     simp [Presheaf.forces, forcePred] at IH1
     replace IH1 := IH1 (Γ' := [])
     simp at IH1

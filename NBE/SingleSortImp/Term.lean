@@ -204,24 +204,6 @@ theorem Tm.subst_up_var0 {t s: Tm} {c n: Nat}:
   apply subst_up (i := 0)
 
 
-theorem Tm.subst_down {t s: Tm} {c i n: Nat}:
-  (t.up (c + i + 1) n).subst i (s.up (c + i + 1) n) = (t.subst i s).up (c + i + 1) n
-:= by
-  induction t generalizing c i n s with
-  | var x =>
-    simp [up, subst]
-    grind [up]
-  | app t1 t2 IH1 IH2 =>
-    simp [up, subst]
-    grind
-  | abs t IH =>
-    simp [up, subst] at *
-    rewrite [Tm.up0_switch]
-    have E: c + i + 1 + 1 = c + (i + 1) + 1 := by ac_nf
-    rewrite [E]
-    apply IH
-
-
 @[simp]
 theorem Tm.subst_up_down_var {t: Tm} {i: Nat}:
   (t.subst i (var $ i + 1)).down i = t.down i

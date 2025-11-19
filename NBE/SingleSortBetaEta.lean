@@ -83,25 +83,6 @@ theorem Tm.up_switch_lemma {t: Tm} {c c' n n': Nat}:
     apply IH
 
 
-theorem Tm.is_var0_or_not {t: Tm}:
-  t = (.var 0) ∨ t ≠ (.var 0)
-:= by
-  cases t with
-  | var x =>
-    cases x with
-    | zero =>
-      left
-      eq_refl
-    | _ =>
-      right
-      intro H
-      cases H
-  | _ =>
-    right
-    intro H
-    cases H
-
-
 def Tm.up0 := Tm.up 0 1
 
 @[simp]
