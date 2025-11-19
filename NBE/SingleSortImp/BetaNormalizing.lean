@@ -7,37 +7,23 @@ namespace SingleSortImp
 namespace BetaNormalizing
 
 def BNE: Presheaf where
-  Pred Γ t T := Γ.Typing t T ∧ exists t', t.beta_eq t' ∧ t'.BNE
+  Pred Γ t T := exists t', t.beta_eq t' ∧ t'.BNE
   weaken {Γ' Γ t T} := by
-    intro ⟨HT, t', E, B⟩
+    intro ⟨t', E, B⟩
+    exists t'.up 0 Γ'.length
     and_intros
-    . apply Context.weaken_app
-      exact HT
-    . exists t'.up 0 Γ'.length
-      and_intros
-      . apply E.up
-      . exact B.up
+    . apply E.up
+    . exact B.up
 
 
 def BNF: Presheaf where
-  Pred Γ t T := Γ.Typing t T ∧ exists t', t.beta_eq t' ∧ t'.BNF
+  Pred Γ t T := exists t', t.beta_eq t' ∧ t'.BNF
   weaken {Γ' Γ t T} := by
-    intro ⟨HT, t', E, B⟩
+    intro ⟨t', E, B⟩
+    exists t'.up 0 Γ'.length
     and_intros
-    . apply Context.weaken_app
-      exact HT
-    . exists t'.up 0 Γ'.length
-      and_intros
-      . apply E.up
-      . exact B.up
-
-
-instance: BNF.Typing where
-  typing {Γ t T} := by
-    simp [BNF]
-    intro HT
-    intros
-    exact HT
+    . apply E.up
+    . exact B.up
 
 
 theorem abs_up_app_beta_step {t: Tm}:
@@ -166,95 +152,47 @@ theorem beta_eq_app_var_normal {t s: Tm}:
   . apply N.down
 
 
-instance BNF.NPair: NPair BNE BNF where
+instance: BNF.HasNeutral where
+  NE := BNE
   atom {Γ t} := by
     simp [BNE, BNF]
     grind [Tm.BNE, Tm.BNF]
 
   imp {Γ Γ'} {t s} {A B} := by
-    rintro ⟨Ht, t', Et', Nt'⟩
-    rintro ⟨Hs, s', Es', Ns'⟩
+    rintro ⟨t', Et', Nt'⟩
+    rintro ⟨s', Es', Ns'⟩
+    exists (t'.up 0 Γ'.length).app s'
     and_intros
-    . constructor
-      . apply Context.weaken_app
-        exact Ht
-      . exact Hs
-    . exists (t'.up 0 Γ'.length).app s'
-      and_intros
-      . apply Tm.beta_eq.app
-        . apply Et'.up
-        . exact Es'
-      . apply Tm.BNE.app
-        . apply Nt'.up
-        . apply Ns'
+    . apply Tm.beta_eq.app
+      . apply Et'.up
+      . exact Es'
+    . apply Tm.BNE.app
+      . apply Nt'.up
+      . apply Ns'
   var {Γ A} := by
     simp [BNE]
+    exists (.var 0)
     and_intros
+    . apply ECl.refl
     . constructor
-      simp
-    . exists (.var 0)
-      and_intros
-      . apply ECl.refl
-      . constructor
   app_inv {Γ t A B} := by
-    rintro ⟨HT, s, E, N⟩
-    and_intros
-    . cases HT with | app HT1 HT2 =>
-      cases HT2
-      simp_all
-      apply Context.weaken_cons_inv
-      exact HT1
-    . apply beta_eq_app_var_normal
-      . apply E
-      . exact N
+    rintro ⟨s, E, N⟩
+    apply beta_eq_app_var_normal
+    . apply E
+    . exact N
 
 
-theorem beta_step_forces {Γ} {t t': Tm} {T}:
+theorem beta_step_forces' {Γ: Context} {t t': Tm} {T}:
   t.beta_step t' ->
-  BNF.forces Γ t T ->
-  BNF.forces Γ t' T
+  BNF.forces Γ t' T ->
+  BNF.forces Γ t T
 := by
   intro S F
   induction T generalizing Γ t t' with
   | Atom =>
     simp [Presheaf.forces, forcePred] at *
     and_intros
-    . apply Tm.beta_step.typing
-      . exact S
-      . apply F.left
-    . obtain ⟨t'', S', N⟩ := F.right
-      exists t''
-      and_intros
-      . apply ECl.trans
-        . symm
-          apply ECl.inclusion
-          exact S
-        . exact S'
-      . exact N
-  | imp T1 T2 IH1 IH2 =>
-    simp [Presheaf.forces, forcePred] at *
-    intro s Γ' F'
-    apply IH2
-    . apply Tm.beta_step.app1
-      apply Tm.beta_step.up
-      exact S
-    . apply F
-      exact F'
-
-
-theorem beta_step_forces' {Γ: Context} {t t': Tm} {T}:
-  Γ.Typing t T ->
-  t.beta_step t' ->
-  BNF.forces Γ t' T ->
-  BNF.forces Γ t T
-:= by
-  intro HT S F
-  induction T generalizing Γ t t' with
-  | Atom =>
-    simp [Presheaf.forces, forcePred] at *
-    and_intros
-    . exact HT
-    . obtain ⟨t'', S', N⟩ := F.right
+    . obtain ⟨t'', S', N⟩ := F
       exists t''
       and_intros
       . apply ECl.step
@@ -265,11 +203,6 @@ theorem beta_step_forces' {Γ: Context} {t t': Tm} {T}:
     simp [Presheaf.forces, forcePred] at *
     intro s Γ' F'
     apply IH2
-    . constructor
-      . apply Context.weaken_app
-        exact HT
-      . replace F' := BNF.NPair.completeness.left F'
-        apply F'.left
     . apply Tm.beta_step.app1
       apply Tm.beta_step.up
       exact S
@@ -277,85 +210,59 @@ theorem beta_step_forces' {Γ: Context} {t t': Tm} {T}:
       exact F'
 
 
-theorem beta_mstep_forces' {Γ: Context} {t t': Tm} {T}:
-  Γ.Typing t T ->
-  t.beta_mstep t' ->
-  BNF.forces Γ t' T ->
-  BNF.forces Γ t T
-:= by
-  intro HT S F
-  induction S with
-  | refl =>
-    assumption
-  | step Hxy Hyz IH =>
-    apply beta_step_forces' HT Hxy
-    apply IH (Hxy.typing HT)
-    exact F
-
-
 instance: BNF.MSubst where
   msubst {Γ t T1 T2 Δ Δ' s env} HT I N F := by
-    apply beta_mstep_forces' _ _ F
-    . -- typing
-      constructor
-      . apply Context.weaken_app
-        apply I.typing
-        constructor
-        exact HT
-      . apply BNF.typing
-        exact N
-    . -- reduction
-      simp [Tm.up, Tm.msubst]
-      apply RTCl.inclusion
-      apply Tm.beta_step.compute
-      apply Tm.beta_step.appAbs_ssubst
-      generalize Δ'.length = n
-      simp [Tm.msubst_ssubst, Tm.up_ssubst]
-      -- we then only have to prove the `Subst`s are the same for those under the length of `var`
-      clear F N
-      apply Tm.ssubst_congr_lt
-      intro x L
-      simp [Subst.comp]
+    apply beta_step_forces' _ F
+    simp [Tm.up, Tm.msubst]
+    apply Tm.beta_step.compute
+    apply Tm.beta_step.appAbs_ssubst
+    generalize Δ'.length = n
+    simp [Tm.msubst_ssubst, Tm.up_ssubst]
+    -- we then only have to prove the `Subst`s are the same for those under the length of `var`
+    clear F N
+    apply Tm.ssubst_congr_lt
+    intro x L
+    simp [Subst.comp]
+    cases x with
+    | zero =>
+      simp [Env.subst, Tm.ssubst, Subst.comp, Subst.up, Subst.step]
+    | succ x =>
+      unfold Env.subst
+      replace L: x < env.length := by
+        replace HT := HT.bound
+        simp at HT
+        rewrite [I.length]
+        omega
+      have E {s c n}: Tm.msubst_var (s :: env.up c n) (x + 1) = (env[x]).up c n := by
+          simp [<-Env.up_index_lt]
+          apply Tm.msubst_var_lt
+          simp
+          exact L
+      simp [E]
+      generalize env[x] = env'
+      simp [Tm.up_ssubst]
+      -- again, we only have to prove the beta_eq of the `Subst`
+      clear HT T1 T2 E L x I env Γ
+      congr
+      funext x
       cases x with
       | zero =>
-        simp [Env.subst, Tm.ssubst, Subst.comp, Subst.up, Subst.step]
-      | succ x =>
-        unfold Env.subst
-        replace L: x < env.length := by
-          replace HT := HT.bound
-          simp at HT
-          rewrite [I.length]
-          omega
-        have E {s c n}: Tm.msubst_var (s :: env.up c n) (x + 1) = (env[x]).up c n := by
-            simp [<-Env.up_index_lt]
-            apply Tm.msubst_var_lt
-            simp
-            exact L
-        simp [E]
-        generalize env[x] = env'
-        simp [Tm.up_ssubst]
-        -- again, we only have to prove the beta_eq of the `Subst`
-        clear HT T1 T2 E L x I env Γ
-        congr
-        funext x
-        cases x with
-        | zero =>
-          simp [Tm.ssubst, Subst.up, Subst.comp, Subst.step]
-          grind
-        | succ =>
-          simp [Tm.ssubst, Subst.up, Subst.comp, Subst.step]
-          grind
+        simp [Tm.ssubst, Subst.up, Subst.comp, Subst.step]
+        grind
+      | succ =>
+        simp [Tm.ssubst, Subst.up, Subst.comp, Subst.step]
+        grind
 
 
 /--
-This is the result of the real completeness
+This is the result of the real completeness.
 -/
 theorem beta_step_normalizing {Γ: Context} {t T}:
   Γ.Typing t T -> exists t', t.beta_eq t' ∧ t'.BNF
 := by
   intro HT
-  let entailment := BNF.NPair.soundness HT
+  let entailment := BNF.soundness HT
   specialize entailment Γ (Env.vars Γ.length) Instantiate.self
   simp at entailment
-  let F := BNF.NPair.completeness.left entailment
-  apply F.right
+  apply BNF.completeness
+  exact entailment

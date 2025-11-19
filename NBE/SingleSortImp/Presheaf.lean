@@ -28,7 +28,7 @@ we can generate the interpretation from `Tm` to C.
 Given a presheaf `P`, we can turn it into a functor from `Tm` to `PSh(C)`.
 `P` corresponds to the forcing relation on variables with functoriality corresponding to monotonicity.
 Semantic entailment in a Kripke structure is a natural transformation in the presheaf category.
-The soundness is the functor  `[·]: Tm → PSh(C)`
+The soundness is the functor  `[·]: Tm → PSh(C)`. (Here `[·]` is the semantic presheaf.)
 
 We have to explain the following:
 1. How to map `imp` when we interpret the atomic type(s) (variables) as a presheaf.
@@ -91,19 +91,20 @@ def Presheaf.forces (P: Presheaf): Presheaf where
       exact F
 
 
-class NPair (PNE: outParam Presheaf) (PNF: Presheaf) where
-  atom {Γ t}: PNE Γ t .Atom -> PNF Γ t .Atom
+class Presheaf.HasNeutral (NF: Presheaf) where
+  NE: Presheaf
+  atom {Γ t}: NE Γ t .Atom -> NF Γ t .Atom
   imp {Γ Γ' t s A B}:
-    PNE.Pred Γ t (A.imp B) ->
-    PNF.Pred (Γ' ++ Γ) s A ->
-    PNE.Pred (Γ' ++ Γ) ((Tm.up 0 (List.length Γ') t).app s) B
-  var {Γ A}: PNE ([A] ++ Γ) (Tm.var 0) A
-  app_inv {Γ t A B}: PNF.Pred (A :: Γ) ((Tm.up 0 1 t).app (Tm.var 0)) B -> PNF.Pred Γ t (A.imp B)
+    NE Γ t (A.imp B) ->
+    NF (Γ' ++ Γ) s A ->
+    NE (Γ' ++ Γ) ((Tm.up 0 (List.length Γ') t).app s) B
+  var {Γ A}: NE (A :: Γ) (Tm.var 0) A
+  app_inv {Γ t A B}: NF (A :: Γ) ((Tm.up 0 1 t).app (Tm.var 0)) B -> NF Γ t (A.imp B)
 
 
-theorem NPair.completeness {PNE PNF: Presheaf} [inst: NPair PNE PNF] {Γ: Context} {T: Ty}:
-  (forall {t}, PNF.forces Γ t T -> PNF Γ t T) ∧
-  (forall {t}, PNE Γ t T -> PNF.forces Γ t T)
+theorem Presheaf.HasNeutral.completeness {NF: Presheaf} [inst: NF.HasNeutral] {Γ: Context} {T: Ty}:
+  (forall {t}, NF.forces Γ t T -> NF Γ t T) ∧
+  (forall {t}, inst.NE Γ t T -> NF.forces Γ t T)
 := by
   induction T generalizing Γ with
   | Atom =>
@@ -119,7 +120,7 @@ theorem NPair.completeness {PNE PNF: Presheaf} [inst: NPair PNE PNF] {Γ: Contex
     and_intros
     . intro t F
       simp [Presheaf.forces, forcePred] at F
-      have H: PNF.forces ([A] ++ Γ) (.var 0) A := by
+      have H: NF.forces ([A] ++ Γ) (.var 0) A := by
         apply IHA.right
         and_intros
         apply inst.var
@@ -135,6 +136,11 @@ theorem NPair.completeness {PNE PNF: Presheaf} [inst: NPair PNE PNF] {Γ: Contex
       apply inst.imp
       . exact NE
       . exact IHA
+
+
+theorem Presheaf.completeness {NF: Presheaf} [inst: NF.HasNeutral] {Γ: Context} {T: Ty}:
+  forall {t}, NF.forces Γ t T -> NF Γ t T
+:= inst.completeness.left
 
 
 /-!
@@ -352,8 +358,8 @@ theorem Instantiate.weaken_cons {P: Presheaf} {Δ: Context} {Γ A env}:
 
 
 @[simp]
-theorem Instantiate.self {Γ} {PNE PNF} [inst: NPair PNE PNF]:
-  Instantiate PNF Γ (Env.vars Γ.length) Γ
+theorem Instantiate.self {Γ} {NF: Presheaf} [inst: NF.HasNeutral]:
+  Instantiate NF Γ (Env.vars Γ.length) Γ
 := by
   induction Γ with
   | nil =>
@@ -408,8 +414,8 @@ def Presheaf.typing (P: Presheaf) [inst: P.Typing]:
 /--
 One part needed for the well-definedness of the natural transformation.
 -/
-theorem Instantiate.typing {PNE PNF: Presheaf} [inst: NPair PNE PNF] [PNF.Typing] {Δ Γ: Context} {env t T}:
-  Instantiate PNF Δ env Γ ->
+theorem Instantiate.typing {NF: Presheaf} [inst: NF.HasNeutral] [NF.Typing] {Δ Γ: Context} {env t T}:
+  Instantiate NF Δ env Γ ->
   Γ.Typing t T ->
   Δ.Typing (t.msubst env) T
 := by
@@ -447,6 +453,9 @@ theorem Instantiate.typing {PNE PNF: Presheaf} [inst: NPair PNE PNF] [PNF.Typing
       exact I
 
 
+/--
+This is the naturality over a beta-reduction.
+-/
 class Presheaf.MSubst (P: Presheaf) where
   msubst {Γ t T1 T2 Δ' Δ s env}:
     Context.Typing (T1 :: Γ) t T2 ->
@@ -464,9 +473,9 @@ If `Γ` and `T` are interpreted as presheaves `[Γ]` and `[T]`, then the morphis
 That is, for each `Δ` in the category `Context`, you have to find a function from `[Γ](Δ)` to `[T](Δ)`.
 The former is some `Δ ⊩ env: Γ`, and the later is `Δ ⊩ t[env]: T`
 -/
-theorem NPair.soundness {PNE PNF: Presheaf} [inst: NPair PNE PNF] [PNF.MSubst] {Γ: Context} {t T}:
+theorem Presheaf.soundness {NF: Presheaf} [inst: NF.HasNeutral] [NF.MSubst] {Γ: Context} {t T}:
   Γ.Typing t T ->
-  forall Δ env, Instantiate PNF Δ env Γ -> PNF.forces Δ (t.msubst env) T
+  forall Δ env, Instantiate NF Δ env Γ -> NF.forces Δ (t.msubst env) T
 := by
   intro HT Δ env I
   induction HT generalizing Δ env with
@@ -505,8 +514,8 @@ theorem NPair.soundness {PNE PNF: Presheaf} [inst: NPair PNE PNF] [PNF.MSubst] {
     rename_i Γ M T1 T2
     simp [Presheaf.forces, forcePred]
     intro s Δ' F
-    have H := inst.completeness.left F
-    have K: Instantiate PNF (Δ' ++ Δ) (s :: env.up 0 Δ'.length) (T1 :: Γ) := by
+    have H := NF.completeness F
+    have K: Instantiate NF (Δ' ++ Δ) (s :: env.up 0 Δ'.length) (T1 :: Γ) := by
       apply Instantiate.cons
       . exact F
       . apply Instantiate.weaken
