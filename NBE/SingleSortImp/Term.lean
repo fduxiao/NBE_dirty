@@ -38,6 +38,10 @@ def Tm.size: Tm -> Nat
   | .abs t => t.size + 1
 
 
+macro_rules
+| `(tactic| trivial) => `(tactic| simp [Tm.size] <;> omega)
+
+
 @[simp]
 theorem Tm.up_size {t: Tm} {c n: Nat}:
   (t.up c n).size = t.size

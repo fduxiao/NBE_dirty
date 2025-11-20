@@ -1047,9 +1047,7 @@ def Tm.eval (t: Tm): Tm :=
   | .abs t => .abs t.eval
 termination_by t.size
 decreasing_by
-  all_goals (try grind [size])
-  simp [size]
-  omega
+  all_goals trivial
 
 
 @[simp]
@@ -1075,21 +1073,20 @@ theorem Tm.step2_eval {t: Tm}:
       split
       . apply step2.abs
         apply IH
-        simp [size]
+        trivial
       . simp_all
         obtain ⟨s, E⟩ := Tm.not_free_up0 (by assumption)
         simp_all
         apply step2.eta
         apply IH
-        simp [size]
-        omega
+        trivial
     next E => -- otherwise
-      specialize IH t (by grind [size])
+      specialize IH t (by trivial)
       simp_all
       apply IH.abs
   | app t1 t2 IH =>
-    have IH1 := IH t1 (by grind [size])
-    have IH2 := IH t2 (by grind [size])
+    have IH1 := IH t1 (by trivial)
+    have IH2 := IH t2 (by trivial)
     cases t1 with
     | var x =>
       simp [eval]
@@ -1104,9 +1101,9 @@ theorem Tm.step2_eval {t: Tm}:
       simp [eval]
       apply step2.appAbs
       . apply IH
-        grind [size]
+        trivial
       . apply IH
-        grind [size]
+        trivial
 
 
 
@@ -1204,8 +1201,8 @@ theorem Tm.step2.switch {t s: Tm}:
     cases S with
     | app S1 S2 =>
       rename_i s1 s2
-      have IH1 := IH t1 (by grind [size]) S1
-      have IH2 := IH t2 (by grind [size]) S2
+      have IH1 := IH t1 (by trivial) S1
+      have IH2 := IH t2 (by trivial) S2
       unfold eval
       split <;> try contradiction
       next E => -- β-redex
@@ -1214,7 +1211,7 @@ theorem Tm.step2.switch {t s: Tm}:
         cases S1 with
         | abs S1 =>
           rename_i s1
-          replace IH1 := IH t1 (by grind [size]) S1
+          replace IH1 := IH t1 (by trivial) S1
           apply step2.appAbs
           . exact IH1
           . exact IH2
@@ -1229,7 +1226,7 @@ theorem Tm.step2.switch {t s: Tm}:
           apply step2.down
           apply Tm.step2.subst
           . apply IH
-            . grind [size]
+            . trivial
             . apply step2.app1
               apply S1.up
           . apply IH2.up
@@ -1241,8 +1238,8 @@ theorem Tm.step2.switch {t s: Tm}:
     | appAbs S1 S2 =>
       rename_i t1 s1 s2
       -- we need it for
-      have IH1 := IH t1 (by grind [size]) S1
-      have IH2 := IH t2 (by grind [size]) S2
+      have IH1 := IH t1 (by trivial) S1
+      have IH2 := IH t2 (by trivial) S2
       simp [eval]
       apply step2.down
       apply step2.subst
@@ -1254,8 +1251,7 @@ theorem Tm.step2.switch {t s: Tm}:
       rename_i t
       simp
       apply IH
-      . simp [size]
-        omega
+      . trivial
       . exact S
     | abs S =>
       rename_i s
@@ -1268,7 +1264,7 @@ theorem Tm.step2.switch {t s: Tm}:
         . -- not a η-redex
           apply step2.abs
           apply IH (t.app (.var 0))
-          . grind [size]
+          . trivial
           . exact S
         . rename_i N
           simp_all
@@ -1281,15 +1277,14 @@ theorem Tm.step2.switch {t s: Tm}:
             simp_all; clear E
             apply step2.eta
             apply IH
-            . simp [size]
-              omega
+            . trivial
             . replace S1 := S1.down (c := 0)
               simp [up0] at S1
               exact S1
           | appAbs S1 S2 =>
             rename_i t s _
             cases S2
-            apply IH _ (by simp [size])
+            apply IH _ (by trivial)
             simp [down0, Tm.down]
             apply step2.abs
             simp [freeVar] at N
@@ -1305,7 +1300,7 @@ theorem Tm.step2.switch {t s: Tm}:
         simp_all; clear E
         apply step2.abs
         apply IH
-        . grind [size]
+        . trivial
         . exact S
 
 
