@@ -323,6 +323,47 @@ theorem Tm.msubst_nil {t: Tm}:
 
 
 /--
+This will be useful to prove the soundness.
+-/
+theorem Tm.msubst_le_step {n} {s} {env} {t: Tm}:
+  t.bound ≤ env.length + 1 ->
+  (((t.msubst (Tm.var 0 :: Env.up 0 1 env)).up 1 n).subst 0 s.up0).down0 =
+  Tm.msubst (s :: Env.up 0 n env) t
+:= by
+  intro H
+  simp [Tm.msubst_ssubst, Tm.up_ssubst, Tm.step_ssubst]
+  -- we then only have to prove the `Subst`s are the same for those under the length of `var`
+  apply Tm.ssubst_congr_lt
+  intro x L
+  simp [Subst.comp]
+  cases x with
+  | zero =>
+    simp [Env.subst, Tm.ssubst, Subst.comp, Subst.up, Subst.step]
+  | succ x =>
+    unfold Env.subst
+    replace L: x < env.length := by
+      omega
+    have E {s c n}: Tm.msubst_var (s :: env.up c n) (x + 1) = (env[x]).up c n := by
+        simp [<-Env.up_index_lt]
+        apply Tm.msubst_var_lt
+        simp
+        exact L
+    simp [E]
+    generalize env[x] = env'
+    simp [Tm.up_ssubst]
+    -- again, we only have to prove the equality of the `Subst`
+    congr
+    funext x
+    cases x with
+    | zero =>
+      simp [Tm.ssubst, Subst.up, Subst.comp, Subst.step]
+      grind
+    | succ =>
+      simp [Tm.ssubst, Subst.up, Subst.comp, Subst.step]
+      grind
+
+
+/--
 The forces relation on a context. The name `Instantiate` is also due to _Software Foundations_
 -/
 inductive Instantiate (P: Presheaf) (Δ: Context): Env -> Context -> Prop where

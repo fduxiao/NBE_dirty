@@ -32,6 +32,44 @@ def Tm.down (c: Nat): Tm -> Tm
   | .app M N => .app (M.down c) (N.down c)
 
 
+def Tm.size: Tm -> Nat
+  | .var _ => 0
+  | .app t1 t2 => t1.size + t2.size + 1
+  | .abs t => t.size + 1
+
+
+@[simp]
+theorem Tm.up_size {t: Tm} {c n: Nat}:
+  (t.up c n).size = t.size
+:= by
+  induction t generalizing c <;> grind [up, size]
+
+
+@[simp]
+theorem Tm.down_size {t: Tm} {c: Nat}:
+  (t.down c).size = t.size
+:= by
+  induction t generalizing c <;> grind [down, size]
+
+
+def Tm.strong_ind.{u} {motive: Tm -> Sort u}
+  (var: forall x, motive (.var x))
+  (abs: forall M: Tm, (forall t: Tm, t.size < M.abs.size -> motive t) -> motive M.abs)
+  (app: forall t1 t2: Tm, (forall t: Tm, t.size < (t1.app t2).size -> motive t) -> motive (t1.app t2))
+  (t: Tm)
+:
+  motive t
+:=
+  match t with
+  | .var x => var x
+  | .abs M => abs M (fun t _ => strong_ind var abs app t)
+  | .app t1 t2 => app t1 t2 (fun t _ => strong_ind var abs app t)
+termination_by t.size
+decreasing_by
+  . trivial
+  . trivial
+
+
 @[simp]
 theorem Tm.up_0 {t: Tm} {c}:
   t.up c 0 = t
@@ -105,11 +143,17 @@ theorem Tm.is_var0_or_not {t: Tm}:
 def Tm.up0 := Tm.up 0 1
 
 @[simp]
+theorem Tm.up0_size {t: Tm}:
+  t.up0.size = t.size
+:= by
+  simp [up0]
+
+
+@[simp]
 theorem Tm.var_up {n: Nat}:
   (Tm.var n).up0 = (Tm.var $ n + 1)
 := by
   simp [up0, up]
-
 
 
 @[simp]
@@ -127,6 +171,13 @@ theorem Tm.up0_switch {t: Tm} {c n: Nat}:
 
 
 def Tm.down0: Tm -> Tm := Tm.down 0
+
+
+@[simp]
+theorem Tm.down0_size {t: Tm}:
+  t.down0.size = t.size
+:= by
+  simp [down0]
 
 
 @[simp]

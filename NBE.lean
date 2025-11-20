@@ -4,4 +4,5 @@ import NBE.Kripke
 import NBE.SingleSortImp.Term
 import NBE.SingleSortImp.Beta
 import NBE.SingleSortImp.BetaNormalizing
-import NBE.SingleSortBetaEta
+import NBE.SingleSortImp.BetaEta
+import NBE.SingleSortImp.BetaEtaNormalizing

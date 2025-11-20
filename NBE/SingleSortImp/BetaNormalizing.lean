@@ -45,7 +45,7 @@ theorem abs_up_app_beta_step {t: Tm}:
 
 
 theorem beta_eq_normal_beta_mstep {t n: Tm}:
-  t.beta_eq n -> n.normal -> t.beta_mstep n
+  t.beta_eq n -> n.beta_normal -> t.beta_mstep n
 := by
   intro S N
   obtain ⟨s, Hts, Hsn⟩ := Relation.church_rosser Tm.beta_step S
@@ -129,7 +129,7 @@ theorem beta_mstep_app_var_normal' {t s: Tm}:
         apply Tm.BNF.abs
         apply N
       and_intros
-      . apply beta_eq_normal_beta_mstep _ N.normal
+      . apply beta_eq_normal_beta_mstep _ N.beta_normal
         apply ECl.trans
         . exact I
         apply Tm.beta_eq.up
@@ -141,7 +141,7 @@ theorem beta_eq_app_var_normal {t s: Tm}:
   ((t.up0.app (.var 0)).beta_eq s) -> s.BNF -> exists t', t.beta_eq t' ∧ t'.BNF
 := by
   intro S N
-  replace S := beta_eq_normal_beta_mstep S N.normal
+  replace S := beta_eq_normal_beta_mstep S N.beta_normal
   have E: t.up0.beta_eq (t.up0.down0.up0) := by simp; apply ECl.refl
   obtain ⟨s, S, N⟩ := beta_mstep_app_var_normal' E S N
   exists s.down0
@@ -215,43 +215,11 @@ instance: BNF.MSubst where
     apply beta_step_forces' _ F
     simp [Tm.up, Tm.msubst]
     apply Tm.beta_step.compute
-    apply Tm.beta_step.appAbs_ssubst
+    . apply Tm.beta_step.appAbs
+    apply Tm.msubst_le_step
     generalize Δ'.length = n
-    simp [Tm.msubst_ssubst, Tm.up_ssubst]
-    -- we then only have to prove the `Subst`s are the same for those under the length of `var`
-    clear F N
-    apply Tm.ssubst_congr_lt
-    intro x L
-    simp [Subst.comp]
-    cases x with
-    | zero =>
-      simp [Env.subst, Tm.ssubst, Subst.comp, Subst.up, Subst.step]
-    | succ x =>
-      unfold Env.subst
-      replace L: x < env.length := by
-        replace HT := HT.bound
-        simp at HT
-        rewrite [I.length]
-        omega
-      have E {s c n}: Tm.msubst_var (s :: env.up c n) (x + 1) = (env[x]).up c n := by
-          simp [<-Env.up_index_lt]
-          apply Tm.msubst_var_lt
-          simp
-          exact L
-      simp [E]
-      generalize env[x] = env'
-      simp [Tm.up_ssubst]
-      -- again, we only have to prove the beta_eq of the `Subst`
-      clear HT T1 T2 E L x I env Γ
-      congr
-      funext x
-      cases x with
-      | zero =>
-        simp [Tm.ssubst, Subst.up, Subst.comp, Subst.step]
-        grind
-      | succ =>
-        simp [Tm.ssubst, Subst.up, Subst.comp, Subst.step]
-        grind
+    replace HT := HT.bound
+    simp_all [I.length]
 
 
 /--

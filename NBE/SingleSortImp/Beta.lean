@@ -17,7 +17,7 @@ inductive Tm.beta_step: Tm -> Tm -> Prop where
 
 def Tm.beta_mstep: Tm -> Tm -> Prop := RTCl Tm.beta_step
 def Tm.beta_eq := ECl Tm.beta_step
-def Tm.normal := Relation.Normal Tm.beta_step
+def Tm.beta_normal := Relation.Normal Tm.beta_step
 
 
 theorem Tm.beta_mstep.abs {t1 t2: Tm}:
@@ -91,8 +91,8 @@ mutual
 end
 
 
-theorem Tm.BNF.normal {t: Tm}:
-  t.BNF -> t.normal
+theorem Tm.BNF.beta_normal {t: Tm}:
+  t.BNF -> t.beta_normal
 := by
   intro H
   intro ⟨t', S⟩
@@ -123,8 +123,8 @@ theorem Tm.BNF.normal {t: Tm}:
       assumption
 
 
-theorem Tm.normal.BNF {t: Tm}:
-  t.normal -> t.BNF
+theorem Tm.beta_normal.BNF {t: Tm}:
+  t.beta_normal -> t.BNF
 := by
   intro H
   induction t with
@@ -132,14 +132,14 @@ theorem Tm.normal.BNF {t: Tm}:
     constructor
     constructor
   | app t1 t2 IH1 IH2 =>
-    have N1: t1.normal := by
+    have N1: t1.beta_normal := by
       intro ⟨y, S⟩
       apply H
       exists y.app t2
       apply beta_step.app1
       exact S
     replace IH1 := IH1 N1
-    have N2: t2.normal := by
+    have N2: t2.beta_normal := by
       intro ⟨y, S⟩
       apply H
       exists t1.app y
@@ -356,39 +356,39 @@ theorem Tm.beta_mstep.up_down {t t': Tm}:
 
 
 /--
-Parallel evaluation.
+Parallel beta_evaluation.
 -/
-def Tm.eval: Tm -> Tm
+def Tm.beta_eval: Tm -> Tm
   | .var x => .var x
-  | .abs t => .abs t.eval
+  | .abs t => .abs t.beta_eval
   | .app (.abs t1) t2 =>
-    (t1.eval.subst 0 t2.eval.up0).down0
+    (t1.beta_eval.subst 0 t2.beta_eval.up0).down0
   | .app t1 t2 =>
-    .app t1.eval t2.eval
+    .app t1.beta_eval t2.beta_eval
 
 
-theorem Tm.eval_rename {t: Tm} {a: Rename}:
-  (t.rename a).eval = t.eval.rename a
+theorem Tm.beta_eval_rename {t: Tm} {a: Rename}:
+  (t.rename a).beta_eval = t.beta_eval.rename a
 := by
   induction t generalizing a with
   | var x =>
-    simp [eval, rename]
+    simp [beta_eval, rename]
   | abs t IH =>
-    simp [eval, rename]
+    simp [beta_eval, rename]
     apply IH
   | app t1 t2 IH1 IH2 =>
     cases t1 with
     | var x =>
-      simp [eval, rename]
+      simp [beta_eval, rename]
       apply IH2
     | app s1 s2 =>
-      simp [eval, rename]
+      simp [beta_eval, rename]
       solve_by_elim
     | abs t1 =>
-      simp [eval, rename] at *
+      simp [beta_eval, rename] at *
       simp [IH1, IH2]
-      generalize t1.eval = t1
-      generalize t2.eval = t2
+      generalize t1.beta_eval = t1
+      generalize t2.beta_eval = t2
       simp [Tm.step_ssubst]
       congr
       funext n
@@ -400,11 +400,11 @@ theorem Tm.eval_rename {t: Tm} {a: Rename}:
 
 
 @[simp]
-theorem Tm.eval_up {t: Tm}:
-  t.up0.eval = t.eval.up0
+theorem Tm.beta_eval_up {t: Tm}:
+  t.up0.beta_eval = t.beta_eval.up0
 := by
   unfold up0
-  simp [Tm.up_rename, Tm.eval_rename]
+  simp [Tm.up_rename, Tm.beta_eval_rename]
 
 
 /--
@@ -490,32 +490,32 @@ theorem Tm.beta_step2.beta_mstep {t1 t2: Tm}:
     . apply IH2
 
 
-theorem Tm.beta_step2_eval {t: Tm}:
-  t.beta_step2 t.eval
+theorem Tm.beta_step2_beta_eval {t: Tm}:
+  t.beta_step2 t.beta_eval
 := by
   induction t with
   | var x =>
-    simp [eval]
+    simp [beta_eval]
     apply beta_step2.refl
   | abs t IH =>
-    simp [eval]
+    simp [beta_eval]
     apply beta_step2.abs
     apply IH
   | app t1 t2 IH1 IH2 =>
     cases t1 with
     | var x =>
-      simp [eval]
+      simp [beta_eval]
       apply beta_step2.app2
       exact IH2
     | app s1 s2 =>
-      simp [eval]
+      simp [beta_eval]
       apply beta_step2.app
       . apply IH1
       . apply IH2
     | abs t1 =>
-      simp [eval] at *
+      simp [beta_eval] at *
       apply beta_step2.appAbs
-      . generalize E: t1.eval.abs = t1' at IH1
+      . generalize E: t1.beta_eval.abs = t1' at IH1
         cases IH1 with
         | abs =>
           cases E
@@ -668,18 +668,18 @@ theorem Tm.beta_step2.subst {t1 t2 s1 s2: Tm} {i}:
 
 theorem Tm.beta_step2.switch {t1 t2: Tm}:
   t1.beta_step2 t2 ->
-  t2.beta_step2 t1.eval
+  t2.beta_step2 t1.beta_eval
 := by
   intro S
   induction S with
   | var =>
-    apply Tm.beta_step2_eval
+    apply Tm.beta_step2_beta_eval
   | abs S IH =>
-    simp [eval]
+    simp [beta_eval]
     apply beta_step2.abs
     apply IH
   | appAbs =>
-    simp [eval]
+    simp [beta_eval]
     apply Tm.beta_step2.down
     apply Tm.beta_step2.subst
     . assumption
@@ -689,18 +689,18 @@ theorem Tm.beta_step2.switch {t1 t2: Tm}:
     rename_i t1 t2 s1 s2
     cases t1 with
     | var =>
-      simp [eval] at *
+      simp [beta_eval] at *
       apply beta_step2.app
       . exact IH1
       . exact IH2
     | app =>
-      simp [eval] at *
+      simp [beta_eval] at *
       apply beta_step2.app
       . exact IH1
       . exact IH2
     | abs t1 =>
-      simp [eval] at *
-      generalize E: t1.eval.abs = t1' at IH1
+      simp [beta_eval] at *
+      generalize E: t1.beta_eval.abs = t1' at IH1
       cases S1 with
       | abs S1 =>
         cases IH1 with
@@ -711,17 +711,17 @@ theorem Tm.beta_step2.switch {t1 t2: Tm}:
           . apply IH2
 
 
-theorem Tm.beta_step2.eval {t1 t2: Tm}:
+theorem Tm.beta_step2.beta_eval {t1 t2: Tm}:
   t1.beta_step2 t2 ->
-  t1.eval.beta_step2 t2.eval
+  t1.beta_eval.beta_step2 t2.beta_eval
 := by
   intro S
   replace S := S.switch
   apply S.switch
 
 
-theorem Tm.beta_mstep.eval {t1 t2: Tm}:
-  t1.beta_mstep t2 -> t1.eval.beta_mstep t2.eval
+theorem Tm.beta_mstep.beta_eval {t1 t2: Tm}:
+  t1.beta_mstep t2 -> t1.beta_eval.beta_mstep t2.beta_eval
 := by
   intro S
   induction S with
@@ -729,7 +729,7 @@ theorem Tm.beta_mstep.eval {t1 t2: Tm}:
     apply RTCl.refl
   | step Hxy Hyz IH =>
     replace Hxy := Hxy.beta_step2
-    replace Hxy := Hxy.eval
+    replace Hxy := Hxy.beta_eval
     replace Hxy := Hxy.beta_mstep
     apply RTCl.trans
     . apply Hxy
@@ -739,14 +739,14 @@ theorem Tm.beta_mstep.eval {t1 t2: Tm}:
 instance Tm.beta_step.semi_confl: SemiConfluent Tm.beta_step where
   semi_confl := by
     intro m1 m2 m3 S MS
-    exists m3.eval
+    exists m3.beta_eval
     and_intros
     . replace S := S.beta_step2
       replace S := S.switch
       replace S := S.beta_mstep
       apply RTCl.trans
       . apply S
-      . apply beta_mstep.eval
+      . apply beta_mstep.beta_eval
         exact MS
     . apply beta_step2.beta_mstep
-      apply beta_step2_eval
+      apply beta_step2_beta_eval
