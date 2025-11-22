@@ -364,19 +364,18 @@ theorem Tm.msubst_le_step {n} {s} {env} {t: Tm}:
 
 
 /--
-The forces relation on a context. The name `Instantiate` is also due to _Software Foundations_
+The forces relation on a context. The name `Satisfy` is the `Instantiate` in _Software Foundations_
 -/
-inductive Instantiate (P: Presheaf) (Δ: Context): Env -> Context -> Prop where
-  | nil: Instantiate P Δ [] []
+inductive Satisfy (P: Presheaf) (Δ: Context): Env -> Context -> Prop where
+  | nil: Satisfy P Δ [] []
   | cons {T: Ty} {t: Tm} {Γ ts}:
     P.forces Δ t T ->
-    Instantiate P Δ ts Γ ->
-    Instantiate P Δ (t :: ts) (T :: Γ)
+    Satisfy P Δ ts Γ ->
+    Satisfy P Δ (t :: ts) (T :: Γ)
 
 
-
-theorem Instantiate.weaken {P: Presheaf} {Δ Δ': Context} {Γ env}:
-  Instantiate P Δ env Γ -> Instantiate P (Δ' ++ Δ) (env.up 0 Δ'.length) Γ
+theorem Satisfy.weaken {P: Presheaf} {Δ Δ': Context} {Γ env}:
+  Satisfy P Δ env Γ -> Satisfy P (Δ' ++ Δ) (env.up 0 Δ'.length) Γ
 := by
   intro I
   induction I with
@@ -389,8 +388,8 @@ theorem Instantiate.weaken {P: Presheaf} {Δ Δ': Context} {Γ env}:
     . exact IH
 
 
-theorem Instantiate.weaken_cons {P: Presheaf} {Δ: Context} {Γ A env}:
-  Instantiate P Δ env Γ -> Instantiate P (A :: Δ) (env.up 0 1) Γ
+theorem Satisfy.weaken_cons {P: Presheaf} {Δ: Context} {Γ A env}:
+  Satisfy P Δ env Γ -> Satisfy P (A :: Δ) (env.up 0 1) Γ
 := by
   intro H
   replace H := weaken H (Δ' := [A])
@@ -399,23 +398,23 @@ theorem Instantiate.weaken_cons {P: Presheaf} {Δ: Context} {Γ A env}:
 
 
 @[simp]
-theorem Instantiate.self {Γ} {NF: Presheaf} [inst: NF.HasNeutral]:
-  Instantiate NF Γ (Env.vars Γ.length) Γ
+theorem Satisfy.self {Γ} {NF: Presheaf} [inst: NF.HasNeutral]:
+  Satisfy NF Γ (Env.vars Γ.length) Γ
 := by
   induction Γ with
   | nil =>
     simp [Env.vars]
     constructor
   | cons T TS IH =>
-    apply Instantiate.cons
+    apply Satisfy.cons
     . apply inst.completeness.right
       apply inst.var
-    . apply Instantiate.weaken_cons
+    . apply Satisfy.weaken_cons
       exact IH
 
 
-theorem Instantiate.length {P} {Δ Γ: Context} {env: Env}:
-  Instantiate P Δ env Γ -> env.length = Γ.length
+theorem Satisfy.length {P} {Δ Γ: Context} {env: Env}:
+  Satisfy P Δ env Γ -> env.length = Γ.length
 := by
   intro H
   induction H with
@@ -425,7 +424,7 @@ theorem Instantiate.length {P} {Δ Γ: Context} {env: Env}:
     simp_all
 
 
-theorem Instantiate.index {P} {Δ: Context} {Γ env} (I: Instantiate P Δ env Γ) (i: Nat):
+theorem Satisfy.index {P} {Δ: Context} {Γ env} (I: Satisfy P Δ env Γ) (i: Nat):
   (h: i < Γ.length) ->
   P.forces Δ (env[i]'(by simp_all [I.length])) Γ[i]
 := by
@@ -455,8 +454,8 @@ def Presheaf.typing (P: Presheaf) [inst: P.Typing]:
 /--
 One part needed for the well-definedness of the natural transformation.
 -/
-theorem Instantiate.typing {NF: Presheaf} [inst: NF.HasNeutral] [NF.Typing] {Δ Γ: Context} {env t T}:
-  Instantiate NF Δ env Γ ->
+theorem Satisfy.typing {NF: Presheaf} [inst: NF.HasNeutral] [NF.Typing] {Δ Γ: Context} {env t T}:
+  Satisfy NF Δ env Γ ->
   Γ.Typing t T ->
   Δ.Typing (t.msubst env) T
 := by
@@ -490,7 +489,7 @@ theorem Instantiate.typing {NF: Presheaf} [inst: NF.HasNeutral] [NF.Typing] {Δ 
     constructor
     . apply inst.completeness.right
       apply inst.var
-    . apply Instantiate.weaken_cons
+    . apply Satisfy.weaken_cons
       exact I
 
 
@@ -500,7 +499,7 @@ This is the naturality over a beta-reduction.
 class Presheaf.MSubst (P: Presheaf) where
   msubst {Γ t T1 T2 Δ' Δ s env}:
     Context.Typing (T1 :: Γ) t T2 ->
-    Instantiate P Δ env Γ ->
+    Satisfy P Δ env Γ ->
     P (Δ' ++ Δ) s T1 ->
     P.forces (Δ' ++ Δ) (Tm.msubst (s :: Env.up 0 (List.length Δ') env) t) T2 ->
     P.forces (Δ' ++ Δ) ((Tm.up 0 (List.length Δ') (Tm.msubst env t.abs)).app s) T2
@@ -516,7 +515,7 @@ The former is some `Δ ⊩ env: Γ`, and the later is `Δ ⊩ t[env]: T`
 -/
 theorem Presheaf.soundness {NF: Presheaf} [inst: NF.HasNeutral] [NF.MSubst] {Γ: Context} {t T}:
   Γ.Typing t T ->
-  forall Δ env, Instantiate NF Δ env Γ -> NF.forces Δ (t.msubst env) T
+  forall Δ env, Satisfy NF Δ env Γ -> NF.forces Δ (t.msubst env) T
 := by
   intro HT Δ env I
   induction HT generalizing Δ env with
@@ -556,10 +555,10 @@ theorem Presheaf.soundness {NF: Presheaf} [inst: NF.HasNeutral] [NF.MSubst] {Γ:
     simp [Presheaf.forces, forcePred]
     intro s Δ' F
     have H := NF.completeness F
-    have K: Instantiate NF (Δ' ++ Δ) (s :: env.up 0 Δ'.length) (T1 :: Γ) := by
-      apply Instantiate.cons
+    have K: Satisfy NF (Δ' ++ Δ) (s :: env.up 0 Δ'.length) (T1 :: Γ) := by
+      apply Satisfy.cons
       . exact F
-      . apply Instantiate.weaken
+      . apply Satisfy.weaken
         exact I
     specialize IH _ _ K
     apply Presheaf.MSubst.msubst <;>

@@ -291,6 +291,14 @@ theorem Tm.NE.weaken_app {Γ' Γ T} {t: Tm}:
   apply H.left.mp
 
 
+theorem Tm.NE.weaken_cons {A Γ T} {t: Tm}:
+  Tm.NE Γ t T -> Tm.NE (A :: Γ) t.up0 T
+:= by
+  let H := (Tm.N_weakening (Γ2 := []) (Γ3 := [A]) (Γ1 := Γ) (t := t) (T := T))
+  simp at H
+  apply H.left.mp
+
+
 theorem Tm.NF.weaken_app {Γ' Γ T} {t: Tm}:
   Tm.NF Γ t T -> Tm.NF (Γ' ++ Γ) (t.up 0 Γ'.length) T
 := by

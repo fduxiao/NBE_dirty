@@ -230,7 +230,7 @@ theorem beta_step_normalizing {Γ: Context} {t T}:
 := by
   intro HT
   let entailment := BNF.soundness HT
-  specialize entailment Γ (Env.vars Γ.length) Instantiate.self
+  specialize entailment Γ (Env.vars Γ.length) Satisfy.self
   simp at entailment
   apply BNF.completeness
   exact entailment

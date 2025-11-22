@@ -114,7 +114,7 @@ theorem Tm.NF_halts {Γ: Context} {t T}:
 := by
   intro HT
   let entailment := NF.soundness HT
-  specialize entailment Γ (Env.vars Γ.length) Instantiate.self
+  specialize entailment Γ (Env.vars Γ.length) Satisfy.self
   simp at entailment
   apply NF.completeness
   exact entailment
