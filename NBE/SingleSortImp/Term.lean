@@ -10,6 +10,13 @@ inductive Ty where
   deriving Repr
 
 
+def Ty.ind.{u} {motive: Ty -> Sort u}
+  (Atom: motive .Atom)
+  (imp: forall T1 T2, motive T1 -> motive T2 -> motive (T1.imp T2))
+: forall T, motive T
+  | .Atom => Atom
+  | .imp T1 T2 => imp T1 T2 (ind Atom imp T1) (ind Atom imp T2)
+
 /--
 Terms using de Bruijn index
 -/
@@ -54,6 +61,23 @@ theorem Tm.down_size {t: Tm} {c: Nat}:
   (t.down c).size = t.size
 := by
   induction t generalizing c <;> grind [down, size]
+
+
+def Tm.ind.{u} {motive: Tm -> Sort u}
+  (var: forall x, motive (.var x))
+  (abs: forall M: Tm, motive M -> motive M.abs)
+  (app: forall t1 t2: Tm, motive t1 -> motive t2 -> motive (t1.app t2))
+  (t: Tm)
+:
+  motive t
+:=
+  match t with
+  | .var x => var x
+  | .abs M => abs M (ind var abs app M)
+  | .app t1 t2 => app t1 t2 (ind var abs app t1) (ind var abs app t2)
+termination_by t.size
+decreasing_by
+  all_goals trivial
 
 
 def Tm.strong_ind.{u} {motive: Tm -> Sort u}

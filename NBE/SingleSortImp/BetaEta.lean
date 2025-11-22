@@ -146,6 +146,12 @@ mutual
 end
 
 
+theorem Tm.NE.atom {Γ t}:
+  Tm.NE Γ t .Atom -> Tm.NF Γ t .Atom
+:= by
+  apply Tm.NF.atom
+
+
 theorem Tm.NFNE.typing {Γ: Context} {t T}:
   (Tm.NF Γ t T -> Γ.Typing t T) ∧ (Tm.NE Γ t T -> Γ.Typing t T)
 := by
