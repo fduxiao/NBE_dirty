@@ -4,50 +4,44 @@ namespace SingleSortImp
 namespace BetaEtaCons
 
 
-
-def forces (P: Context -> Tm -> Ty -> Type) (Γ: Context) (t: Tm) (T: Ty) :=
-match T with
-| .Atom =>
-  P Γ t T
-| .imp A B =>
-  forall (s: Tm) Γ',
-    forces P (Γ' ++ Γ) s A ->
-    forces P (Γ' ++ Γ) ((t.up 0 Γ'.length).app s) B
-
-
-def NF (Γ: Context) (t: Tm) (T: Ty): Type := {t': Tm // t.eq t' ∧ Tm.NF Γ t' T}
-def NE (Γ: Context) (t: Tm) (T: Ty): Type := {t': Tm // t.eq t' ∧ Tm.NE Γ t' T}
+def forces (P: Context -> Tm -> Ty -> Prop) (Γ: Context) (t: Tm) (T: Ty) :=
+  match T with
+  | .Atom =>
+    {t': Tm // t.eq t' ∧ P Γ t' T}
+  | .imp A B =>
+    forall (s: Tm) Γ',
+      forces P (Γ' ++ Γ) s A ->
+      forces P (Γ' ++ Γ) ((t.up 0 Γ'.length).app s) B
 
 
-def NE.var {Γ A}: NE (A :: Γ) (Tm.var 0) A := by
-  simp [NE]
-  exists (.var 0)
-  and_intros
-  . apply ECl.refl
-  . constructor
-    simp
-
-
-def N_imp {Γ Γ' t s A B}:
-  NE Γ t (A.imp B) ->
-  NF (Γ' ++ Γ) s A ->
-  NE (Γ' ++ Γ) ((Tm.up 0 (List.length Γ') t).app s) B
+def forces_eq {P: Context -> Tm -> Ty -> Prop} {Γ: Context} {t1 t2: Tm} {T: Ty}:
+  t1.eq t2 -> forces P Γ t1 T -> forces P Γ t2 T
 := by
-  rintro ⟨t', Et, Nt⟩
-  rintro ⟨s', Es, Ns⟩
-  exists (t'.up 0 Γ'.length).app s'
-  and_intros
-  . apply Tm.eq.app
-    . exact Et.up
-    . exact Es
-  . apply Tm.NE.app
-    . apply Nt.weaken_app
-    . exact Ns
-
+  intro E F
+  induction T using Ty.ind generalizing t1 t2 Γ with
+  | Atom =>
+    unfold forces at *
+    obtain ⟨t', E', H⟩ := F
+    exists t'
+    and_intros
+    . apply ECl.trans
+      . apply ECl.symm
+        exact E
+      . exact E'
+    . exact H
+  | imp T1 T2 IH1 IH2 =>
+    simp [forces]
+    intro s Γ' F'
+    apply IH2
+    . apply Tm.eq.app1
+      apply E.up
+    . specialize F s Γ'
+      apply F
+      exact F'
 
 mutual
 
-def quote {Γ t T}: forces NF Γ t T -> NF Γ t T :=
+def quote {Γ t T}: forces Tm.NF Γ t T -> {t': Tm // t.eq t' ∧ Tm.NF Γ t' T} :=
   match T with
   | .Atom => by
     simp [forces]
@@ -56,9 +50,12 @@ def quote {Γ t T}: forces NF Γ t T -> NF Γ t T :=
   | .imp T1 T2 => by
     simp [forces]
     intro F
+    have H: Tm.NE (T1 :: Γ) (Tm.var 0) T1 := by
+      constructor
+      simp
     specialize F (.var 0) [T1]
     simp at F
-    specialize F (unquote NE.var)
+    specialize F (unquote H)
     obtain ⟨t', E, N⟩ := quote F
     exists t'.abs
     and_intros
@@ -69,25 +66,29 @@ def quote {Γ t T}: forces NF Γ t T -> NF Γ t T :=
       exact N
 
 
-def unquote {Γ t T}: NE Γ t T -> forces NF Γ t T :=
+def unquote {Γ t T}: Tm.NE Γ t T -> forces Tm.NF Γ t T :=
   match T with
   | .Atom => by
     simp [forces]
-    rintro ⟨t', E, N⟩
-    exists t'
+    intro N
+    exists t
     and_intros
-    . exact E
+    . apply ECl.refl
     . apply Tm.NF.atom
       exact N
   | .imp T1 T2 => by
     intro N
     simp [forces]
     intro s Γ' F
-    obtain F := quote F
-    apply unquote
-    apply N_imp
-    . exact N
-    . exact F
+    obtain ⟨s', E, N'⟩ := quote F
+    apply forces_eq
+    . apply Tm.eq.app2
+      apply ECl.symm
+      exact E
+    . apply unquote
+      apply Tm.NE.app
+      . exact N.weaken_app
+      . exact N'
 end
 
 
@@ -95,11 +96,6 @@ def NE.normalize {Γ t T}:
   Tm.NE Γ t T -> { t': Tm // t.eq t' ∧ Tm.NF Γ t' T }
 := by
   intro N
-  replace N: NE Γ t T := by
-    exists t
-    and_intros
-    . apply ECl.refl
-    . exact N
   replace N := unquote N
   replace N := quote N
   exact N
@@ -125,7 +121,7 @@ end Example
 inductive Satisfy (Δ: Context): Env -> Context -> Type where
   | nil: Satisfy Δ [] []
   | cons {T: Ty} {t: Tm} {Γ ts}:
-    forces NF Δ t T ->
+    forces Tm.NF Δ t T ->
     Satisfy Δ ts Γ ->
     Satisfy Δ (t :: ts) (T :: Γ)
 
@@ -142,7 +138,7 @@ theorem Satisfy.length {Δ env Γ}:
 
 
 def forces.weaken {Γ Γ' t T}:
-  forces NF Γ t T -> forces NF (Γ' ++ Γ) (t.up 0 Γ'.length) T
+  forces Tm.NF Γ t T -> forces Tm.NF (Γ' ++ Γ) (t.up 0 Γ'.length) T
 := by
   intro F
   induction T using Ty.ind generalizing Γ' with
@@ -187,7 +183,8 @@ def Satisfy.self {Γ}:
   | T :: TS => by
     apply Satisfy.cons
     . apply unquote
-      apply NE.var
+      apply Tm.NE.var
+      simp
     . apply Satisfy.weaken_cons
       apply Satisfy.self
 
@@ -290,7 +287,7 @@ theorem Typing.bound {Γ: Context} {t T}:
 def soundness_var {Δ Γ: Context} {i} {env: Env} {T}:
   (H: Γ.lookup i = some T) ->
   (S: Satisfy Δ env Γ) ->
-  forces NF Δ (env[i]'(by apply S.some_lt H)) T
+  forces Tm.NF Δ (env[i]'(by apply S.some_lt H)) T
 := by
   intro H S
   match env with
@@ -318,35 +315,9 @@ def soundness_var {Δ Γ: Context} {i} {env: Env} {T}:
         apply soundness_var H S
 
 
-def forces_eq {Γ: Context} {t1 t2: Tm} {T: Ty}:
-  t1.eq t2 -> forces NF Γ t1 T -> forces NF Γ t2 T
-:= by
-  intro E F
-  induction T using Ty.ind generalizing t1 t2 Γ with
-  | Atom =>
-    unfold forces at *
-    obtain ⟨t', E', H⟩ := F
-    exists t'
-    and_intros
-    . apply ECl.trans
-      . apply ECl.symm
-        exact E
-      . exact E'
-    . exact H
-  | imp T1 T2 IH1 IH2 =>
-    simp [forces]
-    intro s Γ' F'
-    apply IH2
-    . apply Tm.eq.app1
-      apply E.up
-    . specialize F s Γ'
-      apply F
-      exact F'
-
-
 def soundness {Γ: Context} {t T}:
   Typing Γ t T ->
-  forall Δ env, Satisfy Δ env Γ -> forces NF Δ (t.msubst env) T
+  forall Δ env, Satisfy Δ env Γ -> forces Tm.NF Δ (t.msubst env) T
 := by
   intro HT Δ env S
   induction t using Tm.ind generalizing Γ T Δ env with
