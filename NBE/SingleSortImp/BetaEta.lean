@@ -20,6 +20,17 @@ inductive Tm.step: Tm -> Tm -> Prop where
   | app2 {t s1 s2: Tm}: Tm.step s1 s2 -> Tm.step (.app t s1) (.app t s2)
 
 
+theorem Tm.beta_step.step {t1 t2: Tm}:
+  t1.beta_step t2 -> t1.step t2
+:= by
+  intro H
+  induction H
+  case appAbs =>
+    apply Tm.step.appAbs
+  case app1 | app2 | abs =>
+    grind [Tm.step]
+
+
 def Tm.mstep: Tm -> Tm -> Prop := RTCl Tm.step
 def Tm.eq := ECl Tm.step
 def Tm.normal := Relation.Normal Tm.step

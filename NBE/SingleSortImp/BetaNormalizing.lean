@@ -210,16 +210,16 @@ theorem beta_step_forces' {Γ: Context} {t t': Tm} {T}:
       exact F'
 
 
-instance: BNF.MSubst where
-  msubst {Γ t T1 T2 Δ Δ' s env} HT I N F := by
-    apply beta_step_forces' _ F
-    simp [Tm.up, Tm.msubst]
-    apply Tm.beta_step.compute
-    . apply Tm.beta_step.appAbs
-    apply Tm.msubst_le_step
-    generalize Δ'.length = n
-    replace HT := HT.bound
-    simp_all [I.length]
+instance: BNF.BetaStep where
+  beta_step {Γ: Context} {t t': Tm} {T} := by
+    intro S N
+    obtain ⟨t'', S', N⟩ := N
+    exists t''
+    and_intros
+    . apply ECl.step
+      . exact S
+      . exact S'
+    . exact N
 
 
 /--
@@ -229,8 +229,6 @@ theorem beta_step_normalizing {Γ: Context} {t T}:
   Γ.Typing t T -> exists t', t.beta_eq t' ∧ t'.BNF
 := by
   intro HT
-  let entailment := BNF.soundness HT
-  specialize entailment Γ (Env.vars Γ.length) Satisfy.self
-  simp at entailment
-  apply BNF.completeness
-  exact entailment
+  have H := BNF.normalize HT
+  simp [BNF] at H
+  exact H

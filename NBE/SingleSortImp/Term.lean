@@ -107,6 +107,7 @@ theorem Tm.up_0 {t: Tm} {c}:
     solve_by_elim
 
 
+@[simp]
 theorem Tm.shift_up_add {t: Tm} {c} {n m}:
   (t.up c n).up c m = t.up c (n + m)
 := by
@@ -224,7 +225,7 @@ theorem Tm.app_down {M1 M2: Tm}:
 
 
 @[simp]
-theorem Tm.up_down_eq {c} {t: Tm}:
+theorem Tm.up_down_eq1 {c} {t: Tm}:
   (t.up c 1).down c = t
 := by
   induction t generalizing c with
@@ -243,6 +244,16 @@ theorem Tm.up_down_eq {c} {t: Tm}:
     simp at *
     simp [up, down]
     apply IH
+
+
+@[simp]
+theorem Tm.up_down_eq {c n} {t: Tm}:
+  (t.up c (n + 1)).down c = t.up c n
+:= by
+  have E: (t.up c (n + 1)) = (t.up c n).up c 1 := by
+    simp
+  rewrite [E]
+  simp only [Tm.up_down_eq1]
 
 
 @[simp]

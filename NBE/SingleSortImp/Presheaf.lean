@@ -1,4 +1,5 @@
 import NBE.SingleSortImp.Term
+import NBE.SingleSortImp.Beta
 
 
 namespace SingleSortImp
@@ -82,7 +83,6 @@ def Presheaf.forces (P: Presheaf): Presheaf where
     | imp T1 T2 IH1 IH2 =>
       simp [forcePred] at *
       intro s Γ'' F
-      simp [Tm.shift_up_add]
       rewrite [<-List.append_assoc]
       rewrite [Nat.add_comm]
       rewrite [<-List.length_append]
@@ -494,6 +494,40 @@ theorem Satisfy.typing {NF: Presheaf} [inst: NF.HasNeutral] [NF.Typing] {Δ Γ: 
 
 
 /--
+This is intended for if `t=_β t'`, then `Γ ⊢ t: τ` and `Γ ⊢ t: τ'` are the same.
+-/
+class Presheaf.BetaStep (NF: Presheaf) where
+  beta_step {Γ: Context} {t t': Tm} {T}: t.beta_step t' -> NF Γ t' T -> NF Γ t T
+
+
+/--
+This is intended for if `t=_β t'`, then `Γ ⊩ t: τ` and `Γ ⊩ t: τ'` are the same.
+-/
+class Presheaf.BetaStepForcing (NF: Presheaf) where
+  beta_step {Γ: Context} {t t': Tm} {T}: t.beta_step t' -> NF.forces Γ t' T -> NF.forces Γ t T
+
+
+instance {NF: Presheaf} [inst: NF.BetaStep]: NF.BetaStepForcing where
+  beta_step {Γ: Context} {t t': Tm} {T} := by
+    intro S F
+    induction T generalizing Γ t t' with
+    | Atom =>
+      simp [Presheaf.forces, forcePred] at *
+      apply inst.beta_step
+      . exact S
+      . exact F
+    | imp T1 T2 IH1 IH2 =>
+      simp [Presheaf.forces, forcePred] at *
+      intro s Γ' F'
+      apply IH2
+      . apply Tm.beta_step.app1
+        apply Tm.beta_step.up
+        exact S
+      . apply F
+        exact F'
+
+
+/--
 This is the naturality over a beta-reduction.
 -/
 class Presheaf.MSubst (P: Presheaf) where
@@ -503,6 +537,18 @@ class Presheaf.MSubst (P: Presheaf) where
     P (Δ' ++ Δ) s T1 ->
     P.forces (Δ' ++ Δ) (Tm.msubst (s :: Env.up 0 (List.length Δ') env) t) T2 ->
     P.forces (Δ' ++ Δ) ((Tm.up 0 (List.length Δ') (Tm.msubst env t.abs)).app s) T2
+
+
+instance {NF: Presheaf} [inst: NF.BetaStepForcing]: NF.MSubst where
+  msubst {Γ t T1 T2 Δ Δ' s env} HT I N F := by
+    apply inst.beta_step _ F
+    simp [Tm.up, Tm.msubst]
+    apply Tm.beta_step.compute
+    . apply Tm.beta_step.appAbs
+    apply Tm.msubst_le_step
+    generalize Δ'.length = n
+    replace HT := HT.bound
+    simp_all [I.length]
 
 
 /--
@@ -563,3 +609,14 @@ theorem Presheaf.soundness {NF: Presheaf} [inst: NF.HasNeutral] [NF.MSubst] {Γ:
     specialize IH _ _ K
     apply Presheaf.MSubst.msubst <;>
     . assumption
+
+
+theorem Presheaf.normalize {Γ: Context} {t T} {NF: Presheaf} [inst: NF.HasNeutral] [NF.MSubst]:
+  Γ.Typing t T -> NF Γ t T
+:= by
+  intro HT
+  let entailment := soundness (NF := NF) HT
+  specialize entailment Γ (Env.vars Γ.length) Satisfy.self
+  simp at entailment
+  apply NF.completeness
+  exact entailment

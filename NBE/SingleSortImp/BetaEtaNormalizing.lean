@@ -68,7 +68,7 @@ instance: NF.HasNeutral where
 
 
 theorem step_forces' {Γ: Context} {t t': Tm} {T}:
-  t.step t' ->
+  t.beta_step t' ->
   NF.forces Γ t' T ->
   NF.forces Γ t T
 := by
@@ -80,30 +80,30 @@ theorem step_forces' {Γ: Context} {t t': Tm} {T}:
     exists t''
     and_intros
     . apply ECl.step
-      . exact S
+      . apply S.step
       . exact S'
     . exact N
   | imp T1 T2 IH1 IH2 =>
     simp [Presheaf.forces, forcePred] at *
     intro s Γ' F'
     apply IH2
-    . apply Tm.step.app1
-      apply Tm.step.up
+    . apply Tm.beta_step.app1
+      apply Tm.beta_step.up
       exact S
     . apply F
       exact F'
 
 
-instance: NF.MSubst where
-  msubst {Γ t T1 T2 Δ Δ' s env} HT I N F := by
-    apply step_forces' _ F
-    simp [Tm.up, Tm.msubst]
-    apply Tm.step.compute
-    . apply Tm.step.appAbs
-    apply Tm.msubst_le_step
-    generalize Δ'.length = n
-    replace HT := HT.bound
-    simp_all [I.length]
+instance: NF.BetaStep where
+  beta_step {Γ: Context} {t t': Tm} {T} := by
+    intro S N
+    obtain ⟨t'', S', N⟩ := N
+    exists t''
+    and_intros
+    . apply ECl.step
+      . exact S.step
+      . exact S'
+    . exact N
 
 
 /--
@@ -113,8 +113,6 @@ theorem Tm.NF_halts {Γ: Context} {t T}:
   Γ.Typing t T -> exists t', t.eq t' ∧ Tm.NF Γ t' T
 := by
   intro HT
-  let entailment := NF.soundness HT
-  specialize entailment Γ (Env.vars Γ.length) Satisfy.self
-  simp at entailment
-  apply NF.completeness
-  exact entailment
+  have H := NF.normalize HT
+  simp [NF] at H
+  exact H
