@@ -147,9 +147,14 @@ theorem Presheaf.HasNeutral.completeness {NF: Presheaf} [inst: NF.HasNeutral] {�
       . exact IHA
 
 
-theorem Presheaf.completeness {NF: Presheaf} [inst: NF.HasNeutral] {Γ: Context} {T: Ty}:
+theorem Presheaf.quote {NF: Presheaf} [inst: NF.HasNeutral] {Γ: Context} {T: Ty}:
   forall {t}, NF.forces Γ t T -> NF Γ t T
 := inst.completeness.left
+
+
+theorem Presheaf.unquote {NF: Presheaf} [inst: NF.HasNeutral] {Γ: Context} {T: Ty}:
+  forall {t}, inst.NE Γ t T -> NF.forces Γ t T
+:= inst.completeness.right
 
 
 theorem Presheaf.forces_var0 {NF: Presheaf} [inst: NF.HasNeutral] {Γ: Context} {T: Ty}:
@@ -677,7 +682,7 @@ theorem Presheaf.soundness {NF: Presheaf} [inst: NF.HasNeutral] [NF.MSubst] {Γ:
     rename_i Γ M T1 T2
     simp [Presheaf.forces, forcePred]
     intro s Δ' F
-    have H := NF.completeness F
+    have H := NF.quote F
     have K: Satisfy NF (Δ' ++ Δ) (s :: env.up 0 Δ'.length) (T1 :: Γ) := by
       apply Satisfy.cons
       . exact F
@@ -695,5 +700,5 @@ theorem Presheaf.normalize {Γ: Context} {t T} {NF: Presheaf} [inst: NF.HasNeutr
   let entailment := soundness (NF := NF) HT
   specialize entailment Γ (Env.vars Γ.length) Satisfy.self
   simp at entailment
-  apply NF.completeness
+  apply NF.quote
   exact entailment
