@@ -7,23 +7,41 @@ namespace SingleSortImp
 namespace BetaNormalizing
 
 def BNE: Presheaf where
-  Pred Γ t T := exists t', t.beta_eq t' ∧ t'.BNE
+  Pred Γ t T := Γ.Typing t T ∧ exists t', t.beta_eq t' ∧ t'.BNE
   weaken {Γ' Γ t T} := by
-    intro ⟨t', E, B⟩
-    exists t'.up 0 Γ'.length
+    intro ⟨HT, t', E, B⟩
     and_intros
-    . apply E.up
-    . exact B.up
+    . apply Context.weaken_app
+      exact HT
+    . exists t'.up 0 Γ'.length
+      and_intros
+      . apply E.up
+      . exact B.up
+
+
+instance: BNE.Typing where
+  typing {Γ t T} := by
+    intro H
+    apply H.left
 
 
 def BNF: Presheaf where
-  Pred Γ t T := exists t', t.beta_eq t' ∧ t'.BNF
+  Pred Γ t T := Γ.Typing t T ∧ exists t', t.beta_eq t' ∧ t'.BNF
   weaken {Γ' Γ t T} := by
-    intro ⟨t', E, B⟩
-    exists t'.up 0 Γ'.length
+    intro ⟨HT, t', E, B⟩
     and_intros
-    . apply E.up
-    . exact B.up
+    . apply Context.weaken_app
+      exact HT
+    . exists t'.up 0 Γ'.length
+      and_intros
+      . apply E.up
+      . exact B.up
+
+
+instance: BNF.Typing where
+  typing {Γ t T} := by
+    intro H
+    apply H.left
 
 
 theorem abs_up_app_beta_step {t: Tm}:
@@ -159,67 +177,55 @@ instance: BNF.HasNeutral where
     grind [Tm.BNE, Tm.BNF]
 
   imp {Γ Γ'} {t s} {A B} := by
-    rintro ⟨t', Et', Nt'⟩
-    rintro ⟨s', Es', Ns'⟩
-    exists (t'.up 0 Γ'.length).app s'
+    rintro ⟨Ht, t', Et', Nt'⟩
+    rintro ⟨Hs, s', Es', Ns'⟩
     and_intros
-    . apply Tm.beta_eq.app
-      . apply Et'.up
-      . exact Es'
-    . apply Tm.BNE.app
-      . apply Nt'.up
-      . apply Ns'
+    . constructor
+      . apply Context.weaken_app
+        apply Ht
+      . exact Hs
+    . exists (t'.up 0 Γ'.length).app s'
+      and_intros
+      . apply Tm.beta_eq.app
+        . apply Et'.up
+        . exact Es'
+      . apply Tm.BNE.app
+        . apply Nt'.up
+        . apply Ns'
   var {Γ A} := by
     simp [BNE]
-    exists (.var 0)
     and_intros
-    . apply ECl.refl
     . constructor
+      simp
+    . exists (.var 0)
+      and_intros
+      . apply ECl.refl
+      . constructor
   app_inv {Γ t A B} := by
-    rintro ⟨s, E, N⟩
-    apply beta_eq_app_var_normal
-    . apply E
-    . exact N
-
-
-theorem beta_step_forces' {Γ: Context} {t t': Tm} {T}:
-  t.beta_step t' ->
-  BNF.forces Γ t' T ->
-  BNF.forces Γ t T
-:= by
-  intro S F
-  induction T generalizing Γ t t' with
-  | Atom =>
-    simp [Presheaf.forces, forcePred] at *
+    rintro ⟨HT, s, E, N⟩
     and_intros
-    . obtain ⟨t'', S', N⟩ := F
-      exists t''
+    . cases HT with | app H1 H2 =>
+      cases H2
+      simp_all
+      apply Context.weaken_cons_inv
+      exact H1
+    . apply beta_eq_app_var_normal
+      . apply E
+      . exact N
+
+
+instance: BNF.BetaStepTyped where
+  beta_step {Γ: Context} {t t': Tm} {T} := by
+    intro HT S N
+    obtain ⟨HT', t'', S', N⟩ := N
+    and_intros
+    . exact HT
+    . exists t''
       and_intros
       . apply ECl.step
         . exact S
         . exact S'
       . exact N
-  | imp T1 T2 IH1 IH2 =>
-    simp [Presheaf.forces, forcePred] at *
-    intro s Γ' F'
-    apply IH2
-    . apply Tm.beta_step.app1
-      apply Tm.beta_step.up
-      exact S
-    . apply F
-      exact F'
-
-
-instance: BNF.BetaStep where
-  beta_step {Γ: Context} {t t': Tm} {T} := by
-    intro S N
-    obtain ⟨t'', S', N⟩ := N
-    exists t''
-    and_intros
-    . apply ECl.step
-      . exact S
-      . exact S'
-    . exact N
 
 
 /--
@@ -231,4 +237,4 @@ theorem beta_step_normalizing {Γ: Context} {t T}:
   intro HT
   have H := BNF.normalize HT
   simp [BNF] at H
-  exact H
+  exact H.right

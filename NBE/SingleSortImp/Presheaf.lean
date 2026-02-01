@@ -64,6 +64,15 @@ instance: CoeFun Presheaf (fun _ => Context -> Tm -> Ty -> Prop) where
   coe P := P.Pred
 
 
+class Presheaf.Typing (P: Presheaf) where
+  typing {Γ t T}: P Γ t T -> Γ.Typing t T
+
+
+def Presheaf.typing (P: Presheaf) [inst: P.Typing]:
+  forall {Γ t T}, P Γ t T -> Γ.Typing t T
+:= inst.typing
+
+
 def forcePred (P: Context -> Tm -> Ty -> Prop) (Γ: Context) (t: Tm) (T: Ty) :=
   match T with
   | .Atom =>
@@ -142,6 +151,30 @@ theorem Presheaf.completeness {NF: Presheaf} [inst: NF.HasNeutral] {Γ: Context}
   forall {t}, NF.forces Γ t T -> NF Γ t T
 := inst.completeness.left
 
+
+theorem Presheaf.forces_var0 {NF: Presheaf} [inst: NF.HasNeutral] {Γ: Context} {T: Ty}:
+  NF.forces (T::Γ) (.var 0) T
+:= by
+  apply inst.completeness.right
+  apply inst.var
+
+
+instance Presheaf.Typing.forces {NF: Presheaf} [inst: NF.HasNeutral] [NF.Typing]: NF.forces.Typing where
+  typing {Γ t T} := by
+    intro F
+    induction T generalizing Γ t
+    case Atom =>
+      simp [Presheaf.forces, forcePred] at F
+      apply NF.typing
+      exact F
+    case imp T1 T2 IH1 IH2 =>
+      simp [Presheaf.forces, forcePred] at F
+      specialize F (.var 0) [T1] NF.forces_var0
+      specialize IH2 F
+      cases IH2 with | app H1 H2 =>
+      cases H2; simp_all
+      apply Context.weaken_cons_inv
+      exact H1
 
 /-!
 ### Natural transformation between presheaves.
@@ -442,15 +475,6 @@ theorem Satisfy.index {P} {Δ: Context} {Γ env} (I: Satisfy P Δ env Γ) (i: Na
       apply IH
 
 
-class Presheaf.Typing (P: Presheaf) where
-  typing {Γ t T}: P Γ t T -> Γ.Typing t T
-
-
-def Presheaf.typing (P: Presheaf) [inst: P.Typing]:
-  forall {Γ t T}, P Γ t T -> Γ.Typing t T
-:= inst.typing
-
-
 /--
 One part needed for the well-definedness of the natural transformation.
 -/
@@ -503,11 +527,7 @@ class Presheaf.BetaStep (NF: Presheaf) where
 /--
 This is intended for if `t=_β t'`, then `Γ ⊩ t: τ` and `Γ ⊩ t: τ'` are the same.
 -/
-class Presheaf.BetaStepForcing (NF: Presheaf) where
-  beta_step {Γ: Context} {t t': Tm} {T}: t.beta_step t' -> NF.forces Γ t' T -> NF.forces Γ t T
-
-
-instance {NF: Presheaf} [inst: NF.BetaStep]: NF.BetaStepForcing where
+instance Presheaf.BetaStep.forces {NF: Presheaf} [inst: NF.BetaStep]: NF.forces.BetaStep where
   beta_step {Γ: Context} {t t': Tm} {T} := by
     intro S F
     induction T generalizing Γ t t' with
@@ -528,6 +548,44 @@ instance {NF: Presheaf} [inst: NF.BetaStep]: NF.BetaStepForcing where
 
 
 /--
+This is intended for if `t=_β t'`, then `Γ ⊢ t: τ` and `Γ ⊢ t: τ'` are the same.
+-/
+class Presheaf.BetaStepTyped (NF: Presheaf) extends NF.Typing where
+  beta_step {Γ: Context} {t t': Tm} {T}: Γ.Typing t T -> t.beta_step t' -> NF Γ t' T -> NF Γ t T
+
+
+/--
+This is intended for if `t=_β t'`, then `Γ ⊩ t: τ` and `Γ ⊩ t: τ'` are the same.
+-/
+instance Presheaf.BetaStepTyped.forces {NF: Presheaf} [NF.HasNeutral] [inst: NF.BetaStepTyped]:
+  NF.forces.BetaStepTyped
+where
+  beta_step {Γ: Context} {t t': Tm} {T} := by
+    intro HT S F
+    induction T generalizing Γ t t' with
+    | Atom =>
+      simp [Presheaf.forces, forcePred] at *
+      apply inst.beta_step
+      . exact HT
+      . exact S
+      . exact F
+    | imp T1 T2 IH1 IH2 =>
+      simp [Presheaf.forces, forcePred] at *
+      intro s Γ' F'
+      apply IH2
+      . constructor
+        . apply Context.weaken_app
+          exact HT
+        . apply NF.forces.typing
+          exact F'
+      . apply Tm.beta_step.app1
+        apply Tm.beta_step.up
+        exact S
+      . apply F
+        exact F'
+
+
+/--
 This is the naturality over a beta-reduction.
 -/
 class Presheaf.MSubst (P: Presheaf) where
@@ -539,9 +597,9 @@ class Presheaf.MSubst (P: Presheaf) where
     P.forces (Δ' ++ Δ) ((Tm.up 0 (List.length Δ') (Tm.msubst env t.abs)).app s) T2
 
 
-instance {NF: Presheaf} [inst: NF.BetaStepForcing]: NF.MSubst where
+instance {NF: Presheaf} [inst: NF.BetaStep]: NF.MSubst where
   msubst {Γ t T1 T2 Δ Δ' s env} HT I N F := by
-    apply inst.beta_step _ F
+    apply inst.forces.beta_step _ F
     simp [Tm.up, Tm.msubst]
     apply Tm.beta_step.compute
     . apply Tm.beta_step.appAbs
@@ -549,6 +607,25 @@ instance {NF: Presheaf} [inst: NF.BetaStepForcing]: NF.MSubst where
     generalize Δ'.length = n
     replace HT := HT.bound
     simp_all [I.length]
+
+
+instance {NF: Presheaf} [NF.HasNeutral] [inst: NF.BetaStepTyped]: NF.MSubst where
+  msubst {Γ t T1 T2 Δ Δ' s env} HT I N F := by
+    apply inst.forces.beta_step _ _ F
+    . constructor
+      . apply Context.weaken_app
+        apply I.typing
+        constructor
+        exact HT
+      . apply NF.typing
+        exact N
+    . simp [Tm.up, Tm.msubst]
+      apply Tm.beta_step.compute
+      . apply Tm.beta_step.appAbs
+      apply Tm.msubst_le_step
+      generalize Δ'.length = n
+      replace HT := HT.bound
+      simp_all [I.length]
 
 
 /--
