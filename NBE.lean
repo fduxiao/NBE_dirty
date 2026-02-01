@@ -8,3 +8,4 @@ import NBE.SingleSortImp.BetaEta
 import NBE.SingleSortImp.BetaEtaNormalizing
 import NBE.SingleSortImp.BetaEtaCons
 import NBE.SingleSortImp.RealPresheaf
+import NBE.SingleSortImp.StrongBeta
