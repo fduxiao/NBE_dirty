@@ -603,19 +603,18 @@ class Presheaf.MSubst (P: Presheaf) where
 
 
 instance {NF: Presheaf} [inst: NF.BetaStep]: NF.MSubst where
-  msubst {Γ t T1 T2 Δ Δ' s env} HT I N F := by
+  msubst {Γ t T1 T2 Δ' Δ s env} HT I N F := by
     apply inst.forces.beta_step _ F
     simp [Tm.up, Tm.msubst]
     apply Tm.beta_step.compute
     . apply Tm.beta_step.appAbs
     apply Tm.msubst_le_step
-    generalize Δ'.length = n
     replace HT := HT.bound
     simp_all [I.length]
 
 
 instance {NF: Presheaf} [NF.HasNeutral] [inst: NF.BetaStepTyped]: NF.MSubst where
-  msubst {Γ t T1 T2 Δ Δ' s env} HT I N F := by
+  msubst {Γ t T1 T2 Δ' Δ s env} HT I N F := by
     apply inst.forces.beta_step _ _ F
     . constructor
       . apply Context.weaken_app
@@ -628,7 +627,6 @@ instance {NF: Presheaf} [NF.HasNeutral] [inst: NF.BetaStepTyped]: NF.MSubst wher
       apply Tm.beta_step.compute
       . apply Tm.beta_step.appAbs
       apply Tm.msubst_le_step
-      generalize Δ'.length = n
       replace HT := HT.bound
       simp_all [I.length]
 
