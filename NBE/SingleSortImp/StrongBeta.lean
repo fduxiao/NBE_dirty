@@ -102,7 +102,7 @@ def NE.NF {Γ t T}:
   exact N
 
 
-instance: NF.HasNeutral where
+instance NF.hasNeutral: NF.HasNeutral where
   NE := NE
   atom {Γ t} := by
     intro N
@@ -131,8 +131,8 @@ instance: NF.HasNeutral where
       apply S
 
 
-instance: NF.BetaStep where
-  beta_step {Γ t t' T} := by
+instance: NF.ABSInv where
+  abs_inv {Γ t t' T} := by
     admit
 
 

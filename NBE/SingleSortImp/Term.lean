@@ -996,6 +996,15 @@ theorem Context.weaken_app_inv {Γ1 Γ2: Context} {M: Tm} {T}:
   exact H
 
 
+theorem Context.weaken_cons_app {Γ1 Γ2: Context} {M: Tm} {S T}:
+  Context.Typing (S :: Γ1) M T ->
+  Context.Typing (S :: (Γ2 ++ Γ1)) (M.up 1 Γ2.length) T
+:= by
+  intro HT
+  have H := weaken_lemma (Γ1 := [S]) (Γ3 := Γ2) (Γ2 := Γ1) HT
+  simp_all
+
+
 /--
 `Typing` is preserved by substitution. This is the general lemma.
 -/

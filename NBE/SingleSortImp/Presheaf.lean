@@ -590,6 +590,42 @@ where
         exact F'
 
 
+class Presheaf.ABSInv (NF: Presheaf) where
+  abs_inv {Γ} {t s: Tm} {T S}:
+    NF.forces Γ (t.subst 0 s.up0).down0 T ->
+    NF Γ s S ->
+    NF.forces Γ (t.abs.app s) T
+
+
+instance {NF: Presheaf} [inst: NF.BetaStep]: NF.ABSInv where
+  abs_inv {Γ t s T S} := by
+    intro F N
+    apply inst.forces.beta_step
+    . apply Tm.beta_step.appAbs
+    . exact F
+
+
+class Presheaf.ABSInvTyped (NF: Presheaf) extends NF.Typing where
+  abs_inv_typed {Γ} {t s: Tm} {T S}:
+    Context.Typing (S :: Γ) t T ->
+    NF.forces Γ (t.subst 0 s.up0).down0 T ->
+    NF Γ s S ->
+    NF.forces Γ (t.abs.app s) T
+
+
+instance {NF: Presheaf} [NF.HasNeutral] [inst: NF.BetaStepTyped]: NF.ABSInvTyped where
+  abs_inv_typed {Γ t s T S} := by
+    intro HT F N
+    apply inst.forces.beta_step
+    . constructor
+      . constructor
+        exact HT
+      . apply NF.typing
+        exact N
+    . apply Tm.beta_step.appAbs
+    . exact F
+
+
 /--
 This is the naturality over a beta-reduction.
 -/
@@ -602,33 +638,39 @@ class Presheaf.MSubst (P: Presheaf) where
     P.forces (Δ' ++ Δ) ((Tm.up 0 (List.length Δ') (Tm.msubst env t.abs)).app s) T2
 
 
-instance {NF: Presheaf} [inst: NF.BetaStep]: NF.MSubst where
+instance {NF: Presheaf} [NF.HasNeutral] [inst: NF.ABSInv]: NF.MSubst where
   msubst {Γ t T1 T2 Δ' Δ s env} HT I N F := by
-    apply inst.forces.beta_step _ F
-    simp [Tm.up, Tm.msubst]
-    apply Tm.beta_step.compute
-    . apply Tm.beta_step.appAbs
-    apply Tm.msubst_le_step
-    replace HT := HT.bound
-    simp_all [I.length]
-
-
-instance {NF: Presheaf} [NF.HasNeutral] [inst: NF.BetaStepTyped]: NF.MSubst where
-  msubst {Γ t T1 T2 Δ' Δ s env} HT I N F := by
-    apply inst.forces.beta_step _ _ F
-    . constructor
-      . apply Context.weaken_app
-        apply I.typing
-        constructor
-        exact HT
-      . apply NF.typing
-        exact N
-    . simp [Tm.up, Tm.msubst]
-      apply Tm.beta_step.compute
-      . apply Tm.beta_step.appAbs
+    simp [Tm.msubst, Tm.up]
+    apply inst.abs_inv _ N
+    have E:
+      ((Tm.up 1 (List.length Δ') (Tm.msubst (Tm.var 0 :: Env.up 0 1 env) t)).subst 0 s.up0).down0
+      = (Tm.msubst (s :: Env.up 0 (List.length Δ') env) t)
+    := by
       apply Tm.msubst_le_step
       replace HT := HT.bound
       simp_all [I.length]
+    simp_all
+
+
+instance {NF: Presheaf} [NF.HasNeutral] [inst: NF.ABSInvTyped]: NF.MSubst where
+  msubst {Γ t T1 T2 Δ' Δ s env} HT I N F := by
+    simp [Tm.msubst, Tm.up]
+    apply Presheaf.ABSInvTyped.abs_inv_typed _ _ N
+    . apply Context.weaken_cons_app (S := T1)
+      have I': Satisfy NF (T1 :: Δ) (Tm.var 0 :: Env.up 0 1 env) (T1 :: Γ) := by
+        apply Satisfy.cons
+        . apply NF.forces_var0
+        . apply I.weaken_cons
+      apply I'.typing
+      exact HT
+    . have E:
+        ((Tm.up 1 (List.length Δ') (Tm.msubst (Tm.var 0 :: Env.up 0 1 env) t)).subst 0 s.up0).down0
+        = (Tm.msubst (s :: Env.up 0 (List.length Δ') env) t)
+      := by
+        apply Tm.msubst_le_step
+        replace HT := HT.bound
+        simp_all [I.length]
+      simp_all
 
 
 /--
