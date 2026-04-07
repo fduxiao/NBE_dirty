@@ -1513,6 +1513,18 @@ theorem Tm.BNE.eq_type_unique {Γ: Context} {t s: Tm} {T1 T2}:
   . exact HT2
 
 
+theorem Tm.NE.eq_type_unique {Γ: Context} {t s: Tm} {T1 T2}:
+  t.eq s -> Tm.NE Γ t T1 -> Tm.NE Γ s T2 -> T1 = T2
+:= by
+  intro E N1 N2
+  apply Tm.BNE.eq_type_unique
+  . exact E
+  . apply N1.BNE
+  . apply N2.BNE
+  . apply N1.typing
+  . apply N2.typing
+
+
 theorem Tm.N_uniqueness {Γ} {t s: Tm} {T}:
   t.eq s ->
   (Tm.NF Γ t T -> Tm.NF Γ s T -> t = s) ∧ (Tm.NE Γ t T -> Tm.NE Γ s T -> t = s)
@@ -1562,7 +1574,7 @@ theorem Tm.N_uniqueness {Γ} {t s: Tm} {T}:
         cases N1 with | app N11 N12 =>
         cases N2 with | app N21 N22 =>
         -- which forces the type
-        have E := Tm.BNE.eq_type_unique E1 N11.BNE N21.BNE N11.typing N21.typing
+        have E := Tm.NE.eq_type_unique E1 N11 N21
         cases E
         replace IH1 := (IH1 E1).right N11 N21
         replace IH2 := (IH2 E2).left N12 N22
