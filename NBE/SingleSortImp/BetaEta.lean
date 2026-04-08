@@ -406,10 +406,10 @@ theorem Tm.step.up {c n} {t t': Tm}:
 
 
 theorem Tm.mstep.up {c n} {t t': Tm}:
-  t.eq t' -> (t.up c n).eq (t'.up c n)
+  t.mstep t' -> (t.up c n).mstep (t'.up c n)
 := by
   intro S
-  apply ECl.keep_cong Tm.step.up
+  apply RTCl.keep_cong Tm.step.up
   exact S
 
 
