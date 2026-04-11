@@ -41,7 +41,7 @@ instance: NF.HasNeutral where
     simp [NE]
     exists (.var 0)
     and_intros
-    . apply ECl.refl
+    . rfl
     . apply Tm.NE.var
       simp
   imp {Γ Γ' t s A B} := by
@@ -59,8 +59,7 @@ instance: NF.HasNeutral where
     rintro ⟨t', E, N⟩
     exists t'.abs
     and_intros
-    . apply ECl.rstep
-      . apply Tm.step.eta
+    . apply Tm.step.eta.rstep
       . apply Tm.eq.abs
         exact E
     . apply Tm.NF.abs
@@ -79,9 +78,9 @@ theorem step_forces' {Γ: Context} {t t': Tm} {T}:
     obtain ⟨t'', S', N⟩ := F
     exists t''
     and_intros
-    . apply ECl.step
-      . apply S.step
-      . exact S'
+    . replace S := S.step.eq
+      apply S.trans
+      exact S'
     . exact N
   | imp T1 T2 IH1 IH2 =>
     simp [Presheaf.forces, forcePred] at *
@@ -100,9 +99,9 @@ instance: NF.BetaStep where
     obtain ⟨t'', S', N⟩ := N
     exists t''
     and_intros
-    . apply ECl.step
-      . exact S.step
-      . exact S'
+    . replace S := S.step.eq
+      apply S.trans
+      exact S'
     . exact N
 
 

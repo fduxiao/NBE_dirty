@@ -20,6 +20,25 @@ def Tm.beta_eq := ECl Tm.beta_step
 def Tm.beta_normal := Relation.Normal Tm.beta_step
 
 
+theorem Tm.beta_step.beta_mstep {t1 t2: Tm}:
+  t1.beta_step t2 -> t1.beta_mstep t2
+:= by
+  apply RTCl.inclusion
+
+
+@[refl]
+theorem Tm.beta_mstep.refl {t: Tm}:
+  t.beta_mstep t
+:= by
+  apply RTCl.refl
+
+
+theorem Tm.beta_mstep.trans {t1 t2 t3: Tm}:
+  t1.beta_mstep t2 -> t2.beta_mstep t3 -> t1.beta_mstep t3
+:= by
+  apply RTCl.trans
+
+
 theorem Tm.beta_mstep.abs {t1 t2: Tm}:
   t1.beta_mstep t2 -> t1.abs.beta_mstep t2.abs
 := by
@@ -49,6 +68,44 @@ theorem Tm.beta_mstep.app {t1 t2 s1 s2: Tm}:
     exact St
   . apply Tm.beta_mstep.app2
     exact Ss
+
+
+theorem Tm.beta_mstep.beta_eq {t1 t2: Tm}:
+  t1.beta_mstep t2 -> t1.beta_eq t2
+:= by
+  apply RTCl.sub_ecl
+
+
+theorem Tm.beta_step.beta_eq {t1 t2: Tm}:
+  t1.beta_step t2 -> t1.beta_eq t2
+:= by
+  apply ECl.inclusion
+
+
+theorem Tm.beta_step.beta_eq_rev {t1 t2: Tm}:
+  t1.beta_step t2 -> t2.beta_eq t1
+:= by
+  apply ECl.reverse
+
+
+@[refl]
+theorem Tm.beta_eq.refl {t: Tm}:
+  t.beta_eq t
+:= by
+  apply ECl.refl
+
+
+@[symm]
+theorem Tm.beta_eq.symm {t1 t2: Tm}:
+  t1.beta_eq t2 -> t2.beta_eq t1
+:= by
+  apply ECl.symm
+
+
+theorem Tm.beta_eq.trans {t1 t2 t3: Tm}:
+  t1.beta_eq t2 -> t2.beta_eq t3 -> t1.beta_eq t3
+:= by
+  apply ECl.trans
 
 
 theorem Tm.beta_eq.abs {t1 t2: Tm}:
@@ -470,9 +527,9 @@ theorem Tm.beta_step2.beta_mstep {t1 t2: Tm}:
   intro S
   induction S with
   | var =>
-    apply RTCl.refl
+    rfl
   | appAbs S1 S2 IH1 IH2 =>
-    apply RTCl.trans
+    apply Tm.beta_mstep.trans
     . apply Tm.beta_mstep.app1
       apply Tm.beta_mstep.abs
       apply IH1

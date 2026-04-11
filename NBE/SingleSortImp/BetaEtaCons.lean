@@ -24,8 +24,8 @@ def forces_eq {P: Context -> Tm -> Ty -> Prop} {Γ: Context} {t1 t2: Tm} {T: Ty}
     obtain ⟨t', E', H⟩ := F
     exists t'
     and_intros
-    . apply ECl.trans
-      . apply ECl.symm
+    . apply Tm.eq.trans
+      . symm
         exact E
       . exact E'
     . exact H
@@ -59,7 +59,7 @@ def quote {Γ t T}: forces Tm.NF Γ t T -> {t': Tm // t.eq t' ∧ Tm.NF Γ t' T}
     obtain ⟨t', E, N⟩ := quote F
     exists t'.abs
     and_intros
-    . apply ECl.rstep Tm.step.eta
+    . apply Tm.step.eta.rstep
       apply Tm.eq.abs
       exact E
     . apply Tm.NF.abs
@@ -73,7 +73,7 @@ def unquote {Γ t T}: Tm.NE Γ t T -> forces Tm.NF Γ t T :=
     intro N
     exists t
     and_intros
-    . apply ECl.refl
+    . rfl
     . apply Tm.NF.atom
       exact N
   | .imp T1 T2 => by
@@ -83,7 +83,7 @@ def unquote {Γ t T}: Tm.NE Γ t T -> forces Tm.NF Γ t T :=
     obtain ⟨s', E, N'⟩ := quote F
     apply forces_eq
     . apply Tm.eq.app2
-      apply ECl.symm
+      symm
       exact E
     . apply unquote
       apply Tm.NE.app
@@ -350,8 +350,8 @@ def soundness {Γ: Context} {t T}:
         exact S
     specialize IH _ _ K
     apply forces_eq
-    . apply ECl.symm
-      apply ECl.inclusion
+    . symm
+      apply Tm.step.eq
       apply Tm.step.compute
       apply Tm.step.appAbs
       apply Tm.msubst_le_step

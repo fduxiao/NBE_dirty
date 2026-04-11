@@ -36,6 +36,24 @@ def Tm.eq := ECl Tm.step
 def Tm.normal := Relation.Normal Tm.step
 
 
+theorem Tm.step.mstep {t1 t2: Tm}:
+  t1.step t2 -> t1.mstep t2
+:= by
+  apply RTCl.inclusion
+
+
+@[refl]
+theorem Tm.mstep.refl {t: Tm}:
+  t.mstep t
+:= by
+  apply RTCl.refl
+
+
+theorem Tm.mstep.trans {t1 t2 t3: Tm}:
+  t1.mstep t2 -> t2.mstep t3 -> t1.mstep t3
+:= by
+  apply RTCl.trans
+
 
 theorem Tm.mstep.abs {t1 t2: Tm}:
   t1.mstep t2 -> t1.abs.mstep t2.abs
@@ -68,6 +86,51 @@ theorem Tm.mstep.app {t1 t2 s1 s2: Tm}:
     exact Ss
 
 
+theorem Tm.mstep.eq {t1 t2: Tm}:
+  t1.mstep t2 -> t1.eq t2
+:= by
+  apply RTCl.sub_ecl
+
+theorem Tm.step.eq {t1 t2: Tm}:
+  t1.step t2 -> t1.eq t2
+:= by
+  apply ECl.inclusion
+
+
+theorem Tm.step.eq_rev {t1 t2: Tm}:
+  t1.step t2 -> t2.eq t1
+:= by
+  apply ECl.reverse
+
+
+theorem Tm.step.rstep {t1 t2 t3: Tm}:
+  t2.step t1 ->
+  t2.eq t3 ->
+  t1.eq t3
+:= by
+  apply ECl.rstep
+
+
+@[refl]
+theorem Tm.eq.refl {t: Tm}:
+  t.eq t
+:= by
+  apply ECl.refl
+
+
+@[symm]
+theorem Tm.eq.symm {t1 t2: Tm}:
+  t1.eq t2 -> t2.eq t1
+:= by
+  apply ECl.symm
+
+
+theorem Tm.eq.trans {t1 t2 t3: Tm}:
+  t1.eq t2 -> t2.eq t3 -> t1.eq t3
+:= by
+  apply ECl.trans
+
+
 theorem Tm.eq.abs {t1 t2: Tm}:
   t1.eq t2 -> t1.abs.eq t2.abs
 := by
@@ -90,7 +153,7 @@ theorem Tm.eq.app {t1 t2 s1 s2: Tm}:
   t1.eq t2 -> s1.eq s2 -> (t1.app s1).eq (t2.app s2)
 := by
   intro H1 H2
-  apply ECl.trans
+  apply Tm.eq.trans
   . apply H1.app1
   . apply H2.app2
 
@@ -640,7 +703,7 @@ theorem Tm.mstep_doEta {t: Tm}:
   induction t with
   | var x =>
     simp [doEta]
-    apply RTCl.refl
+    rfl
   | app t1 t2 IH1 IH2 =>
     simp [doEta]
     apply mstep.app
@@ -665,10 +728,8 @@ theorem Tm.mstep_doEta {t: Tm}:
         simp
         obtain ⟨s, E⟩ := Tm.not_free_up0 E
         simp_all
-        apply RTCl.trans
-        . apply IH.abs
-        apply RTCl.inclusion
-        apply step.eta
+        apply IH.abs.trans
+        apply step.eta.mstep
 
 
 theorem Tm.BNF.doEta {t: Tm}:
@@ -849,21 +910,19 @@ theorem Tm.step2.mstep {t1 t2: Tm}:
   intro S
   induction S with
   | var =>
-    apply RTCl.refl
+    rfl
   | appAbs S1 S2 IH1 IH2 =>
-    apply RTCl.trans
+    apply Tm.mstep.trans
     . apply Tm.mstep.app1
       apply Tm.mstep.abs
       apply IH1
-    apply RTCl.trans
+    apply Tm.mstep.trans
     . apply Tm.mstep.app2
       apply IH2
-    apply RTCl.inclusion
-    apply step.appAbs
+    apply step.appAbs.mstep
   | eta S IH =>
-    apply RTCl.step
-    . apply step.eta
-    . exact IH
+    apply step.eta.mstep.trans
+    exact IH
   | abs S IH =>
     apply mstep.abs
     exact IH
@@ -1344,14 +1403,13 @@ theorem Tm.mstep.eval {t1 t2: Tm}:
   intro S
   induction S with
   | refl =>
-    apply RTCl.refl
+    rfl
   | step Hxy Hyz IH =>
     replace Hxy := Hxy.step2
     replace Hxy := Hxy.eval
     replace Hxy := Hxy.mstep
-    apply RTCl.trans
-    . apply Hxy
-    . apply IH
+    apply Hxy.trans
+    exact IH
 
 
 instance Tm.step.semi_confl: SemiConfluent Tm.step where
@@ -1362,8 +1420,7 @@ instance Tm.step.semi_confl: SemiConfluent Tm.step where
     . replace S := S.step2
       replace S := S.switch
       replace S := S.mstep
-      apply RTCl.trans
-      . apply S
+      apply S.trans
       . apply mstep.eval
         exact MS
     . apply step2.mstep
@@ -1384,28 +1441,22 @@ theorem Tm.eq.doEta {t1 t2: Tm}:
   t1.eq t2 -> t1.doEta.eq t2.doEta
 := by
   intro E
-  apply ECl.trans
-  . apply ECl.symm
-    apply RTCl.sub_ecl
-    apply Tm.mstep_doEta
-  apply ECl.trans
+  apply Tm.eq.trans
+  . symm
+    apply Tm.mstep_doEta.eq
+  apply Tm.eq.trans
   . exact E
-  apply RTCl.sub_ecl
-  . apply Tm.mstep_doEta
+  . apply Tm.mstep_doEta.eq
 
 
 theorem Tm.eq.doEta_inv {t1 t2: Tm}:
   t1.doEta.eq t2.doEta -> t1.eq t2
 := by
   intro E
-  apply ECl.trans
-  . apply RTCl.sub_ecl
-    apply Tm.mstep_doEta
-  apply ECl.trans
-  . exact E
-  apply ECl.symm
-  . apply RTCl.sub_ecl
-    apply Tm.mstep_doEta
+  apply Tm.mstep_doEta.eq.trans
+  apply E.trans
+  symm
+  apply Tm.mstep_doEta.eq
 
 
 theorem Tm.eq.doEta_same {t1 t2: Tm}:
@@ -1442,13 +1493,11 @@ theorem Tm.eq.abs_inv {t s: Tm}:
   t.abs.eq s.abs -> t.eq s
 := by
   intro E
-  apply ECl.rstep
-  . apply Tm.abs_up_app_step
-  apply ECl.trans
+  apply abs_up_app_step.rstep
+  apply Tm.eq.trans
   . apply Tm.eq.app1
     apply E.up
-  apply ECl.inclusion
-  apply Tm.abs_up_app_step
+  apply Tm.abs_up_app_step.eq
 
 
 theorem Tm.NE.type_unique {Γ: Context} {t: Tm} {T1 T2}:
@@ -1565,11 +1614,11 @@ theorem Tm.N_uniqueness {Γ} {t s: Tm} {T}:
         replace E1: t1.eq s1 := by
           apply Tm.eq.doEta_inv
           rewrite [E1]
-          apply ECl.refl
+          rfl
         replace E2: t2.eq s2 := by
           apply Tm.eq.doEta_inv
           rewrite [E2]
-          apply ECl.refl
+          rfl
         -- Normality
         cases N1 with | app N11 N12 =>
         cases N2 with | app N21 N22 =>

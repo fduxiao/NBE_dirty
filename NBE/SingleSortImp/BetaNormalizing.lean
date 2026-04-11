@@ -85,7 +85,7 @@ theorem beta_mstep_app_var_normal' {t s: Tm}:
     rewrite [<-E] at N
     exists t
     and_intros
-    . apply RTCl.refl
+    . rfl
     . grind [Tm.BNE, Tm.BNF]
   | step Hxy Hyz IH =>
     cases Hxy with
@@ -98,47 +98,38 @@ theorem beta_mstep_app_var_normal' {t s: Tm}:
       cases E
       rename_i t'
       have I: t'.beta_eq t'.down0.up0 := by
-        apply ECl.trans
-        . apply ECl.reverse
-          exact S'
-        apply ECl.trans
-        . apply I
+        replace S' := S'.beta_eq
+        apply S'.symm.trans
+        apply I.trans
         apply Tm.beta_eq.up
         apply Tm.beta_eq.down
-        apply ECl.inclusion
         exact S'
       obtain ⟨t'', S'', N⟩ := IH I N (by eq_refl)
       exists t''
       and_intros
-      . apply RTCl.step
-        . apply S'
-        . apply S''
+      . apply S'.beta_mstep.trans
+        apply S''
       . exact N
     | appAbs =>
       cases E
       rename_i s M
       have S1: (M.abs.app (.var 0)).beta_eq s := by
-        apply ECl.step
-        . apply Tm.beta_step.appAbs
-        . apply RTCl.sub_ecl
-          exact Hyz
+        apply Tm.beta_step.appAbs.beta_eq.trans
+        apply Tm.beta_mstep.beta_eq
+        exact Hyz
       have S2: (M.abs.app (.var 0)).beta_eq (M.down 1) := by
         -- we first change the left to `M.abs.down0.up0`
-        apply ECl.trans
+        apply Tm.beta_eq.trans
         . apply Tm.beta_eq.app1
           exact I
         simp [Tm.down0, Tm.down]
-        apply ECl.step
-        . apply abs_up_app_beta_step
-        apply ECl.refl
+        apply abs_up_app_beta_step.beta_eq
 
       have S3: M.abs.down0.beta_eq s.abs := by
         simp [Tm.down0, Tm.down]
         apply Tm.beta_eq.abs
-        apply ECl.trans
-        . apply ECl.symm
-          exact S2
-        . exact S1
+        apply S2.symm.trans
+        exact S1
 
       rewrite [Tm.subst_up_down_var0] at Hyz
       exists s.abs.up0
@@ -148,8 +139,7 @@ theorem beta_mstep_app_var_normal' {t s: Tm}:
         apply N
       and_intros
       . apply beta_eq_normal_beta_mstep _ N.beta_normal
-        apply ECl.trans
-        . exact I
+        apply I.trans
         apply Tm.beta_eq.up
         exact S3
       . exact N
@@ -160,11 +150,11 @@ theorem beta_eq_app_var_normal {t s: Tm}:
 := by
   intro S N
   replace S := beta_eq_normal_beta_mstep S N.beta_normal
-  have E: t.up0.beta_eq (t.up0.down0.up0) := by simp; apply ECl.refl
+  have E: t.up0.beta_eq (t.up0.down0.up0) := by simp; rfl
   obtain ⟨s, S, N⟩ := beta_mstep_app_var_normal' E S N
   exists s.down0
   and_intros
-  . apply RTCl.sub_ecl
+  . apply Tm.beta_mstep.beta_eq
     apply Tm.beta_mstep.up_down
     exact S
   . apply N.down
@@ -199,7 +189,7 @@ instance: BNF.HasNeutral where
       simp
     . exists (.var 0)
       and_intros
-      . apply ECl.refl
+      . rfl
       . constructor
   app_inv {Γ t A B} := by
     rintro ⟨HT, s, E, N⟩
@@ -222,9 +212,8 @@ instance: BNF.BetaStepTyped where
     . exact HT
     . exists t''
       and_intros
-      . apply ECl.step
-        . exact S
-        . exact S'
+      . apply S.beta_eq.trans
+        exact S'
       . exact N
 
 
