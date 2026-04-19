@@ -512,14 +512,6 @@ theorem Tm.mstep.up_down {t t': Tm}:
   exact H
 
 
-theorem Tm.BNE.BNF {t: Tm}:
-  t.BNE -> t.BNF
-:= by
-  intro H
-  constructor
-  exact H
-
-
 theorem Tm.BN.up {t: Tm} {c n}:
   (t.BNE <-> (t.up c n).BNE) ∧ (t.BNF <-> (t.up c n).BNF)
 := by
@@ -1646,3 +1638,124 @@ theorem Tm.N_uniqueness {Γ} {t s: Tm} {T}:
       simp_all
     . intro N
       cases N
+
+
+theorem Tm.NFNE_eta_expansion {Γ} {t t': Tm} {T}:
+  t'.step t ->
+  Γ.Typing t' T ->
+  (Tm.NF Γ t T ∧ t'.BNF) ∨ (Tm.NE Γ t T ∧ t'.BNE) ->
+  t = t'
+:= by
+  intro S HT N
+  induction S generalizing Γ T
+  case appAbs =>
+    -- then t' cannot be beta-normal
+    simp at N
+  case eta t =>
+    rcases N with ⟨N, BN⟩ | ⟨N, BN⟩
+    . replace BN := BN.abs_inv
+      cases HT with | abs HT =>
+      cases N with | abs N =>
+      simp [up0, up] at BN
+    . cases BN
+  case abs t1 t2 S IH =>
+    cases HT with | abs HT
+    congr
+    apply IH
+    . exact HT
+    . rcases N with ⟨N, BN⟩ | ⟨N, BN⟩
+      . left
+        replace BN := BN.abs_inv
+        cases N
+        simp_all
+      . cases BN
+  case app1 t1 t2 s S IH =>
+    cases HT with | app HT1 HT2 =>
+    rename_i T'
+    congr
+    apply IH
+    . exact HT1
+    . rcases N with ⟨N, BN⟩ | ⟨N, BN⟩
+      . right
+        replace BN := BN.app1
+        cases N with | atom N =>
+        cases N with | app N1 N2 =>
+        rename_i T''
+        have E: (T'.imp .Atom) = (T''.imp .Atom) := by
+          apply Tm.BNE.eq_type_unique
+          . apply S.eq
+          . exact BN
+          . exact N1.BNE
+          . exact HT1
+          . exact N1.typing
+        simp_all
+      . right
+        replace BN := BN.app1
+        cases N with | app N1 N2 =>
+        rename_i T''
+        have E: (T'.imp T) = (T''.imp T) := by
+          apply Tm.BNE.eq_type_unique
+          . apply S.eq
+          . exact BN
+          . exact N1.BNE
+          . exact HT1
+          . exact N1.typing
+        simp_all
+  case app2 t1 t2 s S IH =>
+    cases HT with | app HT1 HT2 =>
+    rename_i T'
+    congr
+    apply IH
+    . exact HT2
+    . rcases N with ⟨N, BN⟩ | ⟨N, BN⟩
+      . left
+        replace BN := BN.app2
+        cases N with | atom N =>
+        cases N with | app N1 N2 =>
+        rename_i T''
+        have E: (T'.imp .Atom) = (T''.imp .Atom) := by
+          apply Tm.BNE.eq_type_unique
+          . rfl
+          . exact N1.BNE
+          . exact N1.BNE
+          . exact HT1
+          . exact N1.typing
+        simp_all
+      . left
+        replace BN := BN.app2
+        cases N with | app N1 N2 =>
+        rename_i T''
+        have E: (T'.imp T) = (T''.imp T) := by
+          apply Tm.BNE.eq_type_unique
+          . rfl
+          . exact N1.BNE
+          . exact N1.BNE
+          . exact HT1
+          . exact N1.typing
+        simp_all
+
+
+theorem Tm.NF_eta_expansion {Γ} {t t': Tm} {T}:
+  Tm.NF Γ t T ->
+  Γ.Typing t' T ->
+  t'.BNF ->
+  t'.step t ->
+  t = t'
+:= by
+  intro N HT BN S
+  apply Tm.NFNE_eta_expansion S HT
+  left
+  simp_all
+
+
+theorem Tm.NE_eta_expansion {Γ} {t t': Tm} {T}:
+  Tm.NE Γ t T ->
+  Γ.Typing t' T ->
+  t'.BNE ->
+  t'.step t ->
+  t = t'
+:= by
+  intro N HT BN S
+  apply Tm.NFNE_eta_expansion S HT
+  right
+  simp_all

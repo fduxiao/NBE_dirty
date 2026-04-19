@@ -310,6 +310,75 @@ theorem Tm.BNF.down {t: Tm} {c}:
   apply Tm.BN_down.right.mp
 
 
+theorem Tm.BNF.abs_inv {t: Tm}:
+  t.abs.BNF -> t.BNF
+:= by
+  intro N
+  cases N
+  case neutral N =>
+    cases N
+  case abs N =>
+    exact N
+
+
+theorem Tm.BNE.app1 {t1 t2: Tm}:
+  (t1.app t2).BNE -> t1.BNE
+:= by
+  intro N
+  cases N
+  assumption
+
+
+theorem Tm.BNE.app2 {t1 t2: Tm}:
+  (t1.app t2).BNE -> t2.BNF
+:= by
+  intro N
+  cases N
+  assumption
+
+
+theorem Tm.BNF.app1 {t1 t2: Tm}:
+  (t1.app t2).BNF -> t1.BNE
+:= by
+  intro N
+  cases N with | neutral N =>
+  apply N.app1
+
+
+theorem Tm.BNF.app2 {t1 t2: Tm}:
+  (t1.app t2).BNF -> t2.BNF
+:= by
+  intro N
+  cases N
+  case neutral N =>
+    cases N
+    assumption
+
+
+theorem Tm.BNE.BNF {t: Tm}:
+  t.BNE -> t.BNF
+:= by
+  intro H
+  constructor
+  exact H
+
+
+@[simp]
+theorem Tm.appAbs_not_BNF {t s: Tm}:
+  ¬(t.abs.app s).BNF
+:= by
+  intro N
+  cases N.app1
+
+
+@[simp]
+theorem Tm.appAbs_not_BNE {t s: Tm}:
+  ¬(t.abs.app s).BNE
+:= by
+  intro N
+  replace N := N.BNF
+  contradiction
+
 /-!
 We know some facts about reduction. We first need the following lemma to perform a
 `beta_step` operation.
