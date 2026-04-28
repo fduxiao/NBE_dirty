@@ -593,7 +593,7 @@ where
 class Presheaf.ABSInv (NF: Presheaf) where
   abs_inv {Γ} {t s: Tm} {T S}:
     NF.forces Γ (t.subst 0 s.up0).down0 T ->
-    NF Γ s S ->
+    NF.forces Γ s S ->
     NF.forces Γ (t.abs.app s) T
 
 
@@ -609,7 +609,7 @@ class Presheaf.ABSInvTyped (NF: Presheaf) extends NF.Typing where
   abs_inv_typed {Γ} {t s: Tm} {T S}:
     Context.Typing (S :: Γ) t T ->
     NF.forces Γ (t.subst 0 s.up0).down0 T ->
-    NF Γ s S ->
+    NF.forces Γ s S ->
     NF.forces Γ (t.abs.app s) T
 
 
@@ -620,7 +620,7 @@ instance {NF: Presheaf} [NF.HasNeutral] [inst: NF.BetaStepTyped]: NF.ABSInvTyped
     . constructor
       . constructor
         exact HT
-      . apply NF.typing
+      . apply NF.forces.typing
         exact N
     . apply Tm.beta_step.appAbs
     . exact F
@@ -633,7 +633,7 @@ class Presheaf.MSubst (P: Presheaf) where
   msubst {Γ t T1 T2 Δ' Δ s env}:
     Context.Typing (T1 :: Γ) t T2 ->
     Satisfy P Δ env Γ ->
-    P (Δ' ++ Δ) s T1 ->
+    P.forces (Δ' ++ Δ) s T1 ->
     P.forces (Δ' ++ Δ) (Tm.msubst (s :: Env.up 0 (List.length Δ') env) t) T2 ->
     P.forces (Δ' ++ Δ) ((Tm.up 0 (List.length Δ') (Tm.msubst env t.abs)).app s) T2
 
@@ -681,7 +681,7 @@ If `Γ` and `T` are interpreted as presheaves `[Γ]` and `[T]`, then the morphis
 That is, for each `Δ` in the category `Context`, you have to find a function from `[Γ](Δ)` to `[T](Δ)`.
 The former is some `Δ ⊩ env: Γ`, and the later is `Δ ⊩ t[env]: T`
 -/
-theorem Presheaf.soundness {NF: Presheaf} [inst: NF.HasNeutral] [NF.MSubst] {Γ: Context} {t T}:
+theorem Presheaf.soundness {NF: Presheaf} [NF.MSubst] {Γ: Context} {t T}:
   Γ.Typing t T ->
   forall Δ env, Satisfy NF Δ env Γ -> NF.forces Δ (t.msubst env) T
 := by
@@ -722,15 +722,17 @@ theorem Presheaf.soundness {NF: Presheaf} [inst: NF.HasNeutral] [NF.MSubst] {Γ:
     rename_i Γ M T1 T2
     simp [Presheaf.forces, forcePred]
     intro s Δ' F
-    have H := NF.quote F
     have K: Satisfy NF (Δ' ++ Δ) (s :: env.up 0 Δ'.length) (T1 :: Γ) := by
       apply Satisfy.cons
       . exact F
       . apply Satisfy.weaken
         exact I
     specialize IH _ _ K
-    apply Presheaf.MSubst.msubst <;>
-    . assumption
+    apply Presheaf.MSubst.msubst
+    . exact HT
+    . exact I
+    . exact F
+    . exact IH
 
 
 theorem Presheaf.normalize {Γ: Context} {t T} {NF: Presheaf} [inst: NF.HasNeutral] [NF.MSubst]:
