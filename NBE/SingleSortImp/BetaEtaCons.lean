@@ -374,6 +374,23 @@ def normalize {Γ t T}:
   apply quote entailment
 
 
+def normalize' {Γ t T}
+  (HT: Typing Γ t T)
+:
+  Tm
+:= normalize HT
+
+
+theorem normalize'_normal {Γ t T} (HT: Typing Γ t T):
+  Tm.NF Γ (normalize' HT) T
+:= (normalize HT).property.right
+
+
+theorem normalize'_eq {Γ t T} (HT: Typing Γ t T):
+  t.eq (normalize' HT)
+:= (normalize HT).property.left
+
+
 namespace Example
 
 
