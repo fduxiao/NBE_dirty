@@ -2,6 +2,36 @@ import NBE.SingleSortImp.BetaEta
 import NBE.SingleSortImp.Presheaf
 
 namespace SingleSortImp
+
+def normalize_NE (T: Ty) (t: Tm): Tm :=
+  match T with
+  | .Atom => t
+  | .imp T1 T2 =>
+    .abs $ normalize_NE T2 (t.up0.app (normalize_NE T1 (.var 0)))
+
+
+theorem Tm.NE.normalize_NF {Γ: Context} {t T}:
+  Tm.NE Γ t T ->
+  Tm.NF Γ (normalize_NE T t) T
+:= by
+  intro N
+  induction T generalizing Γ t
+  case Atom =>
+    simp [normalize_NE]
+    apply Tm.NF.atom
+    exact N
+  case imp T1 T2 IH1 IH2 =>
+    simp [normalize_NE]
+    apply Tm.NF.abs
+    apply IH2
+    apply Tm.NE.app
+    . apply Tm.NE.weaken_cons
+      exact N
+    . apply IH1
+      apply Tm.NE.var
+      simp
+
+
 namespace BetaEtaNormalizing
 
 
