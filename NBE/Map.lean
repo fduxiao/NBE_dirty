@@ -37,6 +37,14 @@ theorem FinMap.lookup_succ {V} {M: FinMap V} {v: V} {i: Nat}:
     simp [lookup]
 
 
+theorem FinMap.lookup_functional {V} {M: FinMap V} {i: Nat} {v v'}:
+  FinMap.lookup i M = some v ->
+  FinMap.lookup i M = some v' ->
+  v = v'
+:= by
+  grind
+
+
 @[simp]
 theorem FinMap.lookup_concat_length {V} {M: FinMap V} {v: V}:
   FinMap.lookup M.length (M ++ [v]) = some v

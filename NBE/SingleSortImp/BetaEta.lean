@@ -220,6 +220,60 @@ mutual
 end
 
 
+def Tm.headVar (t: Tm): Nat
+:= match t with
+  | .var x => x
+  | .app t1 _ => t1.headVar
+  | .abs _ => 0
+
+
+theorem Tm.NE.headVar {Γ t T}:
+  Tm.NE Γ t T -> exists T', Γ.lookup t.headVar = some T'
+:= by
+  intro N
+  induction t generalizing Γ T
+  case var x =>
+    simp [Tm.headVar]
+    cases N
+    exists T
+  case app t1 t2 IH1 IH2 =>
+    cases N with | app N1 N2 =>
+    specialize IH1 N1
+    simp [Tm.headVar]
+    exact IH1
+  case abs =>
+    cases N
+
+
+theorem Tm.NE.headVar_lt {Γ t T}:
+  Tm.NE Γ t T -> t.headVar < Γ.length
+:= by
+  intro N
+  replace N := N.headVar
+  apply FinMap.lookup_some_lt
+  exact N.choose_spec
+
+
+def Tm.NE.headType {Γ t T} (N: Tm.NE Γ t T): Ty
+:= Γ[t.headVar]'N.headVar_lt
+
+
+theorem Tm.NE.headType_lookup {Γ t T} (N: Tm.NE Γ t T):
+  Γ.lookup t.headVar = some N.headType
+:= by
+  induction t generalizing Γ T
+  case var x =>
+    simp [Tm.headVar, Tm.NE.headType]
+    apply FinMap.lookup_lt_some
+  case app t1 t2 IH1 IH2 =>
+    cases N with | app N1 N2 =>
+    specialize IH1 N1
+    simp [Tm.headVar]
+    exact IH1
+  case abs =>
+    cases N
+
+
 theorem Tm.NE.atom {Γ t}:
   Tm.NE Γ t .Atom -> Tm.NF Γ t .Atom
 := by
