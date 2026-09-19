@@ -94,7 +94,7 @@ def NE: Presheaf where
     apply N.weaken
 
 
-def NE.NF {Γ t T}:
+theorem NE.NF {Γ t T}:
   NE Γ t T -> NF Γ t T
 := by
   rintro N

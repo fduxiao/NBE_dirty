@@ -4,11 +4,11 @@ namespace SingleSortImp.CounterExample
 
 def Stronger (Γ' Γ: Context): Prop := exists Δ, Γ' = Δ ++ Γ
 
-def Stronger.refl {Γ: Context}: Stronger Γ Γ
+theorem Stronger.refl {Γ: Context}: Stronger Γ Γ
 := by
   exists []
 
-def Stronger.comp {Γ'' Γ' Γ: Context}:
+theorem Stronger.comp {Γ'' Γ' Γ: Context}:
   Stronger Γ' Γ -> Stronger Γ'' Γ' -> Stronger Γ'' Γ
 := by
   rintro ⟨Δ, E⟩ ⟨Δ', E'⟩

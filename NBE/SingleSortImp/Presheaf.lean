@@ -68,7 +68,7 @@ class Presheaf.Typing (P: Presheaf) where
   typing {Γ t T}: P Γ t T -> Γ.Typing t T
 
 
-def Presheaf.typing (P: Presheaf) [inst: P.Typing]:
+theorem Presheaf.typing (P: Presheaf) [inst: P.Typing]:
   forall {Γ t T}, P Γ t T -> Γ.Typing t T
 := inst.typing
 

@@ -9,7 +9,7 @@ class KeepCong {X: Type} (R S: Relation X) where
     forall {x y}, (S x y) -> S (f x) (f y)
 
 
-def Relation.keep_cong {X: Type}
+theorem Relation.keep_cong {X: Type}
   {R S: Relation X} (f: X -> X)
   [inst: KeepCong R S]:
     (forall {x y}, (R x y) -> R (f x) (f y)) ->
@@ -175,7 +175,7 @@ def Relation.Normal {X: Type} (R: Relation X) (x: X) := Not (exists y, R x y)
 def Relation.MNormal {X: Type} (R: Relation X) (x: X) := forall {y}, RTCl R x y -> x = y
 
 
-def Relation.Normal.MNormal {X: Type} {R: Relation X}:
+theorem Relation.Normal.MNormal {X: Type} {R: Relation X}:
   forall {x: X}, R.Normal x -> R.MNormal x
 := by
   intro n HR m HMR
@@ -193,15 +193,21 @@ class Confluent {X: Type} (R: Relation X) where
   confl: forall {m1 m2 m3},
     RTCl R m1 m2 -> RTCl R m1 m3 -> exists m4, RTCl R m2 m4 /\ RTCl R m3 m4
 
-def Relation.confl {X: Type} (R: Relation X) [inst: Confluent R]
-  {m1 m2 m3} := inst.confl (m1 := m1) (m2 := m2) (m3 := m3)
+theorem Relation.confl {X: Type} (R: Relation X) [inst: Confluent R]
+  {m1 m2 m3}
+:
+  RTCl R m1 m2 → RTCl R m1 m3 → ∃ m4, RTCl R m2 m4 ∧ RTCl R m3 m4
+:= inst.confl (m1 := m1) (m2 := m2) (m3 := m3)
 
 
 class SemiConfluent {X: Type} (R: Relation X) where
   semi_confl: forall {m1 m2 m3}, R m1 m2 -> RTCl R m1 m3 -> exists m4, RTCl R m2 m4 /\ RTCl R m3 m4
 
-def Relation.semi_confl {X: Type} (R: Relation X) [inst: SemiConfluent R]
-  {m1 m2 m3} := inst.semi_confl (m1 := m1) (m2 := m2) (m3 := m3)
+theorem Relation.semi_confl {X: Type} (R: Relation X) [inst: SemiConfluent R]
+  {m1 m2 m3}
+:
+  R m1 m2 → RTCl R m1 m3 → ∃ m4, RTCl R m2 m4 ∧ RTCl R m3 m4
+:= inst.semi_confl (m1 := m1) (m2 := m2) (m3 := m3)
 
 
 instance SemiConfluent.confluent {X: Type} (R: Relation X)
@@ -233,8 +239,11 @@ class ChurchRosser {X: Type} (R: Relation X) where
     ECl R m2 m3 -> exists m4, RTCl R m2 m4 /\ RTCl R m3 m4
 
 
-def Relation.church_rosser {X: Type} (R: Relation X) [inst: ChurchRosser R]
-  {m2 m3} := inst.church_rosser (m2 := m2) (m3 := m3)
+theorem Relation.church_rosser {X: Type} (R: Relation X) [inst: ChurchRosser R]
+  {m2 m3}
+:
+  ECl R m2 m3 → ∃ m4, RTCl R m2 m4 ∧ RTCl R m3 m4
+:= inst.church_rosser (m2 := m2) (m3 := m3)
 
 
 instance Confluent.church_rosser {X: Type} (R: Relation X)

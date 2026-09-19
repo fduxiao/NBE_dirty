@@ -105,16 +105,20 @@ namespace Example
 
 def Γ: Context := [.Atom, .imp .Atom .Atom]
 
-def var0_NE: Tm.NE Γ (.var 0) .Atom := by
+theorem var0_NE: Tm.NE Γ (.var 0) .Atom := by
   constructor
   simp [Γ]
 
 
-def var1_NE: Tm.NE Γ (.var 1) (.imp .Atom .Atom) := by
+theorem var1_NE: Tm.NE Γ (.var 1) (.imp .Atom .Atom) := by
   constructor
   simp [Γ]
 
-def var1' := (NE.normalize var1_NE).property
+theorem var1':
+  (Tm.var 1).eq (NE.normalize var1_NE).val
+  ∧
+  Tm.NF Γ (NE.normalize var1_NE).val (Ty.Atom.imp Ty.Atom)
+:= (NE.normalize var1_NE).property
 end Example
 
 

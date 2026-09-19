@@ -53,7 +53,7 @@ def Context.forces (Γ: Context) (A: Formula) : Prop := match A with
   | .or P Q => Γ.forces P ∨ Γ.forces Q
 
 
-def Context.forces.weaken {Γ Γ': Context} {A: Formula}:
+theorem Context.forces.weaken {Γ Γ': Context} {A: Formula}:
   Γ.forces A ->
   Γ.Sublist Γ' ->
   Γ'.forces A

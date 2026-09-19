@@ -44,7 +44,7 @@ def Presheaf.mul (P Q: Presheaf): Presheaf where
 
 
 @[simp]
-def Presheaf.mul_obj {P Q: Presheaf} {Δ}:
+theorem Presheaf.mul_obj {P Q: Presheaf} {Δ}:
   (P.mul Q) Δ = ((P Δ) × (Q Δ))
 := by
   simp [Presheaf.mul]
@@ -198,14 +198,14 @@ def Context.sem (Γ: Context) := Presheaf.List (List.map Sem Γ)
 
 
 @[simp]
-def Context.sem_nil:
+theorem Context.sem_nil:
   Context.sem [] = Presheaf.terminal
 := by
   simp [Context.sem, Presheaf.List]
 
 
 @[simp]
-def Context.sem_cons {T TS}:
+theorem Context.sem_cons {T TS}:
   Context.sem (T :: TS) = (Sem T).mul (Context.sem TS)
 := by
   simp [Context.sem, Presheaf.List]

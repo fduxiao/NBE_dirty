@@ -237,13 +237,9 @@ theorem Tm.up_down_eq1 {c} {t: Tm}:
     next H =>
       grind
   | app t1 t2 IH1 IH2 =>
-    simp at *
-    simp [up, down]
-    simp_all
+    grind [up, down]
   | abs M IH =>
-    simp at *
-    simp [up, down]
-    apply IH
+    grind [up, down]
 
 
 @[simp]
@@ -402,9 +398,9 @@ theorem Rename.abs_comp {a1 a2: Rename}:
   funext n
   induction n with
   | zero =>
-    simp [abs]
+    simp [abs, Function.comp]
   | succ =>
-    grind [abs]
+    simp [abs, Function.comp]
 
 
 @[simp]
@@ -413,7 +409,7 @@ theorem Tm.rename_twice {t: Tm} {a1 a2: Rename}:
 := by
   induction t generalizing a1 a2 with
   | var x =>
-    simp [rename]
+    simp [rename, Function.comp]
   | app =>
     grind [rename]
   | abs t IH =>
@@ -507,7 +503,7 @@ theorem Rename.switch {a: Rename}:
   (a.abs ∘ Rename.up 0 1) = Rename.up 0 1 ∘ a
 := by
   funext n
-  cases n <;> simp [abs, up]
+  cases n <;> simp [abs, up, Function.comp]
 
 
 @[simp]
